@@ -18,6 +18,6 @@ cd /usr/share/kibana
 bin/kibana-verification-code
 ```
 
-# ElasticsearchのインデックスにKibanaから
+# ElasticsearchのインデックスをKibana上でモニタリングする
 1. http://localhost:5601/app/management/kibana/dataViews にアクセスしてDataViewを作成する
 2. http://localhost:5601/app/discover から見れるようになる
