@@ -1,4 +1,7 @@
 # セットアップ
+## コンテナ立ち上げ
+`docker compose up`
+
 ## Enrollment tokenの発行
 ElasticsearchをインストールしているDockerコンテナに入る
 ```sh
