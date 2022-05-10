@@ -9,8 +9,8 @@ es = Elasticsearch("http://localhost:9200")
 # インデックス一覧の取得
 indices = es.cat.indices(index="*", h="index").splitlines()
 # 一度すべてのインデックスを削除する
-for index in indices:
-    es.indices.delete(index=index)
+# for index in indices:
+#     es.indices.delete(index=index)
 
 # マッピングを作成
 mapping = {
