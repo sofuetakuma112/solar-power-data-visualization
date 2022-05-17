@@ -49,24 +49,20 @@ equation_of_time = (  # 均時差(時間に依らない) OK
     - 0.040849 * np.sin(2 * theta)
 )
 
-# lng = 132.75093  # 任意の経度(longitude)
-lng_int = 132
-lng_deci = 75
-lng_deg = lng_int + lng_deci / 60 # TODO: 緯度の小数第3位以降に対応する
-lng_diff = (lng_deg - 135) / 180 * np.pi
+def dd2dms(dd):
+    deg = np.floor(dd)
+    f = dd - deg
+    minute = np.floor(f * 60)
+    second = np.floor((f - minute / 60) * 3600)
+    return [deg, minute, second]
+
+lng_deg = 132.75093  # 任意の経度(longitude)
 lng_rad = lng_deg * np.pi / 180
-print(f"lng_rad: {lng_rad}")
-print(f"lng_diff: {lng_diff}")
 
-# lat = 33.82794  # 任意の緯度(latitude)
-lat_int = 33
-lat_deci = 82
-lat_deg = lat_int + lat_deci / 60  # TODO: 緯度の小数第3位以降に対応する
+lat_deg = 33.82794  # 任意の緯度(latitude)
 lat_rad = lat_deg * np.pi / 180
-print(f"lat_rad: {lat_rad}")
 
-current_time_central_std_hour = 12  # 中央標準時
-lng_diff_from_standard_meridian = np.abs(lng - 135)  # 標準子午線からの経度差
+lng_diff = (lng_deg - 135) / 180 * np.pi # 経度差
 
 # 太陽の時角を求める
 # http://www.es.ris.ac.jp/~nakagawa/met_cal/solar.html
@@ -112,12 +108,12 @@ def calc_sun_azimuths(hour_angle, sun_declination, altitude, lat_rad):
     )
 
 
-hour_angle = calc_sun_hour_angle3(dt, lng_diff, equation_of_time) # 時角
+hour_angle = calc_sun_hour_angle3(dt, lng_diff, equation_of_time)  # 時角
 
 sun_altitude = calc_sun_altitude(hour_angle, sun_declination, lat_rad)
 sun_azimuths = calc_sun_azimuths(hour_angle, sun_declination, sun_altitude, lat_rad)
 sin_alpha = calc_sun_altitude_like(hour_angle, sun_declination, lat_rad)
-print(f"日射量: {1367 * geocentri_distance_like * sin_alpha}") # 日射量の式を変形したもの
+print(f"日射量: {1367 * geocentri_distance_like * sin_alpha}")  # 日射量の式を変形したもの
 
 # q = 1367 * np.sqrt(1 / geocentri_distance) * np.sin(sun_altitude) # 日射量の式
 # print(q)
