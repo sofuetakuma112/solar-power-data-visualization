@@ -113,7 +113,5 @@ hour_angle = calc_sun_hour_angle3(dt, lng_diff, equation_of_time)  # 時角
 sun_altitude = calc_sun_altitude(hour_angle, sun_declination, lat_rad)
 sun_azimuths = calc_sun_azimuths(hour_angle, sun_declination, sun_altitude, lat_rad)
 sin_alpha = calc_sun_altitude_like(hour_angle, sun_declination, lat_rad)
-print(f"日射量: {1367 * geocentri_distance_like * sin_alpha}")  # 日射量の式を変形したもの
+print(f"日射量[kW/m^2]: {1367 * geocentri_distance_like * sin_alpha / 1000}")  # 日射量の式を変形したもの
 
-# q = 1367 * np.sqrt(1 / geocentri_distance) * np.sin(sun_altitude) # 日射量の式
-# print(q)
