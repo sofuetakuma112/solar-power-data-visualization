@@ -5,7 +5,6 @@ import os
 
 
 def fetchDocsByDatetime(dt_crr, filePath):
-    # Elasticsearchインスタンスを作成
     es = Elasticsearch("http://133.71.201.197:9200", http_auth=("takenaka", "takenaka"))
 
     indexName = "pcs_recyclekan"
@@ -14,17 +13,13 @@ def fetchDocsByDatetime(dt_crr, filePath):
     if os.path.isfile(filePath):
         return
 
-    dt_prev = dt_crr + datetime.timedelta(days=-1)
     dt_next = dt_crr + datetime.timedelta(days=1)
     query = {
         "query": {
             "range": {
-                # TODO: utctimeではなく、JPTimeのrangeで検索したほうがわかりやすい？
-                "JPtime": {  # utctimeはkibana上で自動的にJSTに変換して表示するのを前提に、計測したタイミングのUTC時刻 - 9hをUTC時刻として登録しているので
+                "JPtime": {
                     "gte": f"{dt_crr.year}-{str(dt_crr.month).zfill(2)}-{str(dt_crr.day).zfill(2)}T00:00:00",
-                    # "gte": f"{dt_prev.year}-{str(dt_prev.month).zfill(2)}-{str(dt_prev.day).zfill(2)}T15:00:00",
                     "lt": f"{dt_next.year}-{str(dt_next.month).zfill(2)}-{str(dt_next.day).zfill(2)}T00:00:00",
-                    # "lt": f"{dt_crr.year}-{str(dt_crr.month).zfill(2)}-{str(dt_crr.day).zfill(2)}T15:00:00",
                 },  # JST時間をUTC時間として登録しているのでUTC時間として検索する必要がある
             }
         }
@@ -48,9 +43,6 @@ def fetchDocsByDatetime(dt_crr, filePath):
         s_id = data["_scroll_id"]
         s_size = len(data["hits"]["hits"])
         result.extend(data["hits"]["hits"])
-
-    # for document in result:
-    #     print(document["_source"]["utctime"])
 
     with open(filePath, "wb") as f:
         pickle.dump(result, f)

@@ -2,6 +2,7 @@ import datetime
 import datetime
 from es import fetch
 from plotQOnGivenDay import plotQs
+from time_diff_in_actual_Q import timeDiffInActualQ
 import sys
 import os
 
@@ -12,4 +13,5 @@ dt = datetime.datetime(int(splitBySlash[0]), int(splitBySlash[1]), int(splitBySl
 fileName = f"docs_{dt.year}{str(dt.month).zfill(2)}{str(dt.day).zfill(2)}.pickle"
 filePath = f"{os.getcwd()}/pickles/{fileName}"
 fetch.fetchDocsByDatetime(dt, filePath)
-plotQs(filePath)
+# plotQs(filePath)
+timeDiffInActualQ(filePath)
