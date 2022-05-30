@@ -5,6 +5,7 @@ import datetime
 from operator import itemgetter
 from com_global import calcQ
 import numpy as np
+from utils.numerical_processing import min_max
 
 
 def plotQs(filePath):
@@ -36,12 +37,13 @@ def plotQs(filePath):
     dtsByMinute = itemgetter(*indexes)(times)
     print(f"len(dtsByMinute): {len(dtsByMinute)}")
     qs = itemgetter(*indexes)(qs)
-    plt.plot(dtsByMinute, qs, label="実測値")  # 実データをプロット
+    plt.plot(dtsByMinute, min_max(qs), label="実測値")  # 実データをプロット
 
     qs_calc = list(  # 理論値を計算(kW/m^2に変換している)
         map(lambda dt: max(calcQ(dt, 33.82794, 132.75093) / 1000, 0), dtsByMinute)
     )
-    qs_calc_scaled = list(map(lambda q: q * (max(qs) / max(qs_calc)), qs_calc))
+    qs_calc_scaled = min_max(qs_calc)
+    # qs_calc_scaled = list(map(lambda q: q * (max(qs) / max(qs_calc)), qs_calc))
     plt.plot(  # 理論値をプロット
         dtsByMinute,
         qs_calc_scaled,  # 縦軸のスケールを実測値と揃えている

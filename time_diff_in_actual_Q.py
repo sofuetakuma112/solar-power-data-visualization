@@ -5,24 +5,17 @@ import datetime
 from operator import itemgetter
 from com_global import calcQ
 import numpy as np
+from es.util import sortDocsByKey, isoformats2dt, extractFieldsFromDocs
 
 
 def timeDiffInActualQ(filePath):
     with open(filePath, "rb") as f:
         docs = pickle.load(f)
 
-    docs = sorted(  # datetimeでソート
-        docs,
-        key=lambda doc: datetime.datetime.fromisoformat(doc["_source"]["JPtime"])
-        + datetime.timedelta(hours=9),
-    )
-    times = list(
-        map(
-            lambda doc: datetime.datetime.fromisoformat(doc["_source"]["JPtime"]),
-            docs,
-        )
-    )
-    qs = list(map(lambda doc: doc["_source"]["solarIrradiance(kw/m^2)"], docs))
+    docs = sortDocsByKey(docs, "JPtime")
+    jptimes = extractFieldsFromDocs(docs, "JPtime")
+    times = isoformats2dt(jptimes)
+    qs = extractFieldsFromDocs(docs, "solarIrradiance(kw/m^2)")
 
     indexes = [0]
     prevDt = times[0]
@@ -78,7 +71,7 @@ def timeDiffInActualQ(filePath):
         datetime.datetime(times[0].year, times[0].month, times[0].day, 5, 25, 0, 0),
         datetime.datetime(times[0].year, times[0].month, times[0].day, 19, 00, 0, 0),
     )
-    
+
     plt.ylim(
         0,
         100,
