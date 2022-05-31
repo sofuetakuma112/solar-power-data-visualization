@@ -9,6 +9,7 @@ import sys
 import os
 
 import numpy as np
+from itertools import chain
 
 
 # def plotQ():
@@ -41,9 +42,26 @@ import numpy as np
 
 if __name__ == "__main__":
     # plotQ()
-    nums1 = np.array([1, 2, 3])
-    nums2 = np.array([1] * len(nums1))
+    # nums1 = np.array([1, 2, 3])
+    # nums2 = np.array([1] * len(nums1))
 
+    # print((nums1 - nums2) / 5)
+    # print((nums1 - 1) / 5)
 
-    print((nums1 - nums2) / 5)
-    print((nums1 - 1) / 5)
+    # A = []
+    # for i in range(5):
+    #     B = [i] * 3
+    #     B = [i] * 3
+    #     A = list(chain(A, B))
+
+    # print(A)
+
+    A = [1, 2, 3]
+    B = [0, 1, 0.5]
+    A = np.array(A)
+    B = np.array(B)
+    cov = np.cov(A, B)[0][1]
+    A_std = np.std(A)
+    B_std = np.std(B)
+    print(cov / (A_std * B_std))
+    print(np.correlate(A, B))
