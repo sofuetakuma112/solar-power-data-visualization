@@ -8,7 +8,7 @@ import numpy as np
 from utils.numerical_processing import min_max
 
 
-def plotQs(filePath):
+def plotQs(filePath, delay_s):
     with open(filePath, "rb") as f:
         docs = pickle.load(f)
 
@@ -40,7 +40,14 @@ def plotQs(filePath):
     plt.plot(dtsByMinute, min_max(qs), label="実測値")  # 実データをプロット
 
     qs_calc = list(  # 理論値を計算(kW/m^2に変換している)
-        map(lambda dt: max(calcQ(dt, 33.82794, 132.75093) / 1000, 0), dtsByMinute)
+        map(
+            lambda dt: max(
+                calcQ((dt + datetime.timedelta(seconds=delay_s)), 33.82794, 132.75093)
+                / 1000,
+                0,
+            ),
+            dtsByMinute,
+        )
     )
     qs_calc_scaled = min_max(qs_calc)
     # qs_calc_scaled = list(map(lambda q: q * (max(qs) / max(qs_calc)), qs_calc))

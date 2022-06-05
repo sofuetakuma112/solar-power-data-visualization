@@ -6,9 +6,10 @@ from operator import itemgetter
 from com_global import calcQ
 import numpy as np
 from es.util import sortDocsByKey, isoformats2dt, extractFieldsFromDocs
+from utils.numerical_processing import min_max
 
 
-def timeDiffInActualQ(filePath):
+def timeDiffInActualQ(filePath, delay_s):
     with open(filePath, "rb") as f:
         docs = pickle.load(f)
 
@@ -27,12 +28,20 @@ def timeDiffInActualQ(filePath):
         prevDt = time
 
     dtsByMinute = itemgetter(*indexes)(times)
-    qs = itemgetter(*indexes)(qs)
+    qs = min_max(itemgetter(*indexes)(qs))
 
     qs_calc = list(  # 理論値を計算(kW/m^2に変換している)
-        map(lambda dt: max(calcQ(dt, 33.82794, 132.75093) / 1000, 0), dtsByMinute)
+        map(
+            lambda dt: max(
+                calcQ(dt + datetime.timedelta(seconds=delay_s), 33.82794, 132.75093)
+                / 1000,
+                0,
+            ),
+            dtsByMinute,
+        )
     )
-    qs_calc_scaled = list(map(lambda q: q * (max(qs) / max(qs_calc)), qs_calc))
+    # qs_calc_scaled = list(map(lambda q: q * (max(qs) / max(qs_calc)), qs_calc))
+    qs_calc_scaled = min_max(qs_calc)
 
     # 同時刻の実測値と計算値から、計算値と同じ数値を持つ実測値の時刻と、元の実測値との時刻差を求め、その最大値を計算する
     diffs_minutes = []
@@ -69,7 +78,7 @@ def timeDiffInActualQ(filePath):
 
     plt.xlim(
         datetime.datetime(times[0].year, times[0].month, times[0].day, 5, 25, 0, 0),
-        datetime.datetime(times[0].year, times[0].month, times[0].day, 19, 00, 0, 0),
+        datetime.datetime(times[0].year, times[0].month, times[0].day, 18, 45, 0, 0),
     )
 
     plt.ylim(

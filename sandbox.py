@@ -56,12 +56,22 @@ if __name__ == "__main__":
 
     # print(A)
 
-    A = [1, 2, 3]
-    B = [0, 1, 0.5]
-    A = np.array(A)
-    B = np.array(B)
-    cov = np.cov(A, B)[0][1]
-    A_std = np.std(A)
-    B_std = np.std(B)
-    print(cov / (A_std * B_std))
-    print(np.correlate(A, B))
+    # A = [1, 2, 3]
+    # B = [0, 1, 0.5]
+    # A = np.array(A)
+    # B = np.array(B)
+    # cov = np.cov(A, B)[0][1]
+    # A_std = np.std(A)
+    # B_std = np.std(B)
+    # print(cov / (A_std * B_std))
+    # print(np.correlate(A, B))
+    
+    dt1 = datetime.datetime(2018, 12, 31, 5, 0, 30, 1000)
+    dt2 = datetime.datetime(2018, 12, 31, 5, 0, 31, 500)
+    dt3 = datetime.datetime(2018, 12, 31, 5, 0, 33, 500)
+    # print(dt.isoformat()[:19])
+
+    diff1 = dt2 - dt1
+    diff2 = dt3 - dt2
+    print(diff1.total_seconds() * 1000)
+    print(diff2.total_seconds() * 1000)
