@@ -65,13 +65,29 @@ if __name__ == "__main__":
     # B_std = np.std(B)
     # print(cov / (A_std * B_std))
     # print(np.correlate(A, B))
-    
-    dt1 = datetime.datetime(2018, 12, 31, 5, 0, 30, 1000)
-    dt2 = datetime.datetime(2018, 12, 31, 5, 0, 31, 500)
-    dt3 = datetime.datetime(2018, 12, 31, 5, 0, 33, 500)
-    # print(dt.isoformat()[:19])
 
-    diff1 = dt2 - dt1
-    diff2 = dt3 - dt2
-    print(diff1.total_seconds() * 1000)
-    print(diff2.total_seconds() * 1000)
+    # dt1 = datetime.datetime(2018, 12, 31, 5, 0, 30, 1000)
+    # dt2 = datetime.datetime(2018, 12, 31, 5, 0, 31, 500)
+    # dt3 = datetime.datetime(2018, 12, 31, 5, 0, 33, 500)
+    # # print(dt.isoformat()[:19])
+
+    # diff1 = dt2 - dt1
+    # diff2 = dt3 - dt2
+    # print(diff1.total_seconds() * 1000)
+    # print(diff2.total_seconds() * 1000)
+
+    # list = [1, 2, 3, 4, 5]
+    # for i in range(len(list)):
+    #     print(i)
+
+    dt5 = datetime.datetime(2018, 12, 31, 5, 1, 11, 300000)
+    dt6 = datetime.datetime(2018, 12, 31, 5, 1, 12)
+    dt7 = datetime.datetime(2018, 12, 31, 5, 1, 12)
+    dt8 = datetime.datetime(2018, 12, 31, 5, 1, 14, 200000)
+
+    print(dt5.microsecond)
+    print(dt6.microsecond)
+    print(dt7.microsecond)
+    print(dt8.microsecond)
+
+    print(datetime.datetime(2022, 5, 21, 0, 4, 7, 200515).microsecond == 0)
