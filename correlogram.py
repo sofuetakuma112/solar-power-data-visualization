@@ -24,6 +24,7 @@ def loadQAndDtForPeriod(startDt, span):
     span_float, span_int = math.modf(span)
     loopCount = 0
     while True:
+        fetch.fetchDocsByDatetime(dt_crr)
         filePath = getPickleFilePathByDatetime(dt_crr)
         with open(filePath, "rb") as f:
             docs = pickle.load(f)
@@ -64,6 +65,7 @@ def loadQAndDtForAGivenPeriod(fromDt, toDt):
     dtDiff = toDt - fromDt
     dt_crr = fromDt
     for i in range(dtDiff.days + 1):
+        fetch.fetchDocsByDatetime(dt_crr)
         filePath = getPickleFilePathByDatetime(dt_crr)
         with open(filePath, "rb") as f:
             docs = pickle.load(f)
@@ -167,8 +169,8 @@ def main():
     # 与えた期間の日射量と計測日時をファイルから読み込む(dtでソート済み)
     # dt_all, Q_all = loadQAndDtForAGivenPeriod(fromDt, toDt) # TODO: スタートの日付と、何日分取得するかの期間を引数に取得する関数を実装する
     dt_all, Q_all = loadQAndDtForPeriod(fromDt, fixedDaysLen)
-    dt_all_copy = copy.deepcopy(dt_all) # 補完が正しく行えているか確認する用
-    Q_all_copy = copy.deepcopy(Q_all) # 補完が正しく行えているか確認する用
+    dt_all_copy = copy.deepcopy(dt_all)  # 補完が正しく行えているか確認する用
+    Q_all_copy = copy.deepcopy(Q_all)  # 補完が正しく行えているか確認する用
 
     print(f"dt_all[0]: {dt_all[0]}")
     print(f"dt_all[-1]: {dt_all[-1]}")
@@ -218,39 +220,54 @@ def main():
 
     corr = np.correlate(Q_all, Q_calc_all)
 
-    print(f"corr.argmax(): {corr.argmax()}")
-    print(
-        f"dts_q_calc_all_with_lag[corr.argmax()]: {dts_q_calc_all_with_lag[corr.argmax()]}"
-    )
-    tmp = dts_q_calc_all_with_lag[corr.argmax()] - dts_q_calc_all_with_lag[0]
-    print(f"best delta: {np.abs(6 * 60 * 60 - tmp.total_seconds())}")
+    print(f"{corr.argmax()}秒スライドさせたとき相互相関が最大")  # corr.argmax()秒スライドさせた時が相互相関が最大
+    largest_lag_sec = 6 * 60 * 60 - corr.argmax()
+    print(f"真の計算値の時間 - 実測値の時間: {largest_lag_sec}")
 
     # axes = [plt.subplots()[1] for i in range(2)]
-    axes = [plt.subplots()[1] for i in range(1)]
+    axes = [plt.subplots()[1] for _ in range(2)]
 
-    # axes[0].plot(dt_all, Q_all, label="実測値(補完)")  # 実データをプロット
-    # axes[0].plot(dt_all_copy, Q_all_copy, label="実測値(生データ)", linestyle="dashed")
+    # axes[0].plot(dt_all, Q_all, label="実測値(補完)")  # 補完データをプロット
+    axes[0].plot(dt_all_copy, Q_all_copy, label="実測値(生データ)", linestyle="dashed")
 
-    # axes[0].set_xlim(
-    #     [
-    #         datetime.datetime(dt_all[0].year, dt_all[0].month, dt_all[0].day, 0, 0, 0),
-    #         datetime.datetime(dt_all[0].year, dt_all[0].month, dt_all[0].day, 0, 0, 0)
-    #         + datetime.timedelta(days=1),
-    #     ]
-    # )
-    # axes[0].plot(
-    #     dts_q_calc_all_with_lag,
-    #     Q_calc_all,
-    #     label="計算値",
-    # )  # 実データをプロット
-    # axes[0].set_xlabel("日時")
-    # axes[0].set_ylabel("日射量[kW/m^2]")
+    print(int(largest_lag_sec))
+    slided_dts_with_largest_lag_sec = list(
+        map(
+            lambda dt: dt + datetime.timedelta(seconds=int(largest_lag_sec)),
+            dts_q_calc_all,
+        )
+    )
+    axes[0].plot(
+        dts_q_calc_all,
+        list(
+            map(
+                lambda dt: max(calcQ(dt, 33.82794, 132.75093), 0) / 1000,
+                slided_dts_with_largest_lag_sec,
+            )
+        ),
+        label="計算値(相互相関が最大となるラグを適用)",
+        linestyle="dashed",
+    )
+    axes[0].plot(
+        dts_q_calc_all,
+        list(
+            map(
+                lambda dt: max(calcQ(dt, 33.82794, 132.75093), 0) / 1000,
+                dts_q_calc_all,
+            )
+        ),
+        label="計算値",
+        linestyle="dashdot",
+    )
+
+    axes[0].set_xlabel("日時")
+    axes[0].set_ylabel("日射量[kW/m^2]")
 
     print(f"len(corr): {len(corr)}")
 
-    axes[0].set_xlabel("実測値の日時 - 計算値の日時[s]")
-    axes[0].set_ylabel("相互相関")
-    axes[0].plot(
+    axes[1].set_xlabel("実測値の日時 - 計算値の日時[s]")
+    axes[1].set_ylabel("相互相関")
+    axes[1].plot(
         [
             i - (fixedDaysLen - dynamicDaysLen) * 24 * 60 * 60 / 2
             for i in range(len(corr))

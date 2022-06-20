@@ -1,6 +1,4 @@
 import datetime
-import datetime
-from turtle import delay
 
 from numpy import number
 from es import fetch
