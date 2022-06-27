@@ -225,10 +225,10 @@ def main():
     print(f"真の計算値の時間 - 実測値の時間: {largest_lag_sec}")
 
     # axes = [plt.subplots()[1] for i in range(2)]
-    axes = [plt.subplots()[1] for _ in range(2)]
+    axes = [plt.subplots() for _ in range(2)]
 
     # axes[0].plot(dt_all, Q_all, label="実測値(補完)")  # 補完データをプロット
-    axes[0].plot(dt_all_copy, Q_all_copy, label="実測値(生データ)", linestyle="dashed")
+    axes[0][1].plot(dt_all_copy, Q_all_copy, label="実測値", linestyle="dashed")
 
     print(int(largest_lag_sec))
     slided_dts_with_largest_lag_sec = list(
@@ -237,7 +237,7 @@ def main():
             dts_q_calc_all,
         )
     )
-    axes[0].plot(
+    axes[0][1].plot(
         dts_q_calc_all,
         list(
             map(
@@ -248,26 +248,26 @@ def main():
         label="計算値(相互相関が最大となるラグを適用)",
         linestyle="dashed",
     )
-    axes[0].plot(
-        dts_q_calc_all,
-        list(
-            map(
-                lambda dt: max(calcQ(dt, 33.82794, 132.75093), 0) / 1000,
-                dts_q_calc_all,
-            )
-        ),
-        label="計算値",
-        linestyle="dashdot",
-    )
+    # axes[0].plot(
+    #     dts_q_calc_all,
+    #     list(
+    #         map(
+    #             lambda dt: max(calcQ(dt, 33.82794, 132.75093), 0) / 1000,
+    #             dts_q_calc_all,
+    #         )
+    #     ),
+    #     label="計算値",
+    #     linestyle="dashdot",
+    # )
 
-    axes[0].set_xlabel("日時")
-    axes[0].set_ylabel("日射量[kW/m^2]")
+    axes[0][1].set_xlabel("日時")
+    axes[0][1].set_ylabel("日射量[kW/m^2]")
 
     print(f"len(corr): {len(corr)}")
 
-    axes[1].set_xlabel("実測値の日時 - 計算値の日時[s]")
-    axes[1].set_ylabel("相互相関")
-    axes[1].plot(
+    axes[1][1].set_xlabel("実測値の日時 - 計算値の日時[s]")
+    axes[1][1].set_ylabel("相互相関")
+    axes[1][1].plot(
         [
             i - (fixedDaysLen - dynamicDaysLen) * 24 * 60 * 60 / 2
             for i in range(len(corr))
@@ -276,6 +276,7 @@ def main():
         color="r",
     )
 
+    axes[0][0].legend()
     plt.show()
 
 
