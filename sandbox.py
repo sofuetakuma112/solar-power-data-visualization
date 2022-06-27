@@ -91,3 +91,5 @@ if __name__ == "__main__":
     print(dt8.microsecond)
 
     print(datetime.datetime(2022, 5, 21, 0, 4, 7, 200515).microsecond == 0)
+
+    print(list(map(lambda x: x / 10, range(1, 11))))

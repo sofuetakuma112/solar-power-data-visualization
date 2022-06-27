@@ -164,10 +164,9 @@ def main():
     fromDt = datetime.datetime(int(fromDtStr[0]), int(fromDtStr[1]), int(fromDtStr[2]))
     toDt = datetime.datetime(int(toDtStr[0]), int(toDtStr[1]), int(toDtStr[2]))
 
-    fetch.fetchDocsByPeriod(fromDt, toDt)
+    fetch.fetchDocsByPeriod(fromDt, toDt)  # pickleファイルがない場合、取得する
 
     # 与えた期間の日射量と計測日時をファイルから読み込む(dtでソート済み)
-    # dt_all, Q_all = loadQAndDtForAGivenPeriod(fromDt, toDt) # TODO: スタートの日付と、何日分取得するかの期間を引数に取得する関数を実装する
     dt_all, Q_all = loadQAndDtForPeriod(fromDt, fixedDaysLen)
     dt_all_copy = copy.deepcopy(dt_all)  # 補完が正しく行えているか確認する用
     Q_all_copy = copy.deepcopy(Q_all)  # 補完が正しく行えているか確認する用
@@ -181,9 +180,9 @@ def main():
     # 時系列データの点間が全て1.0[s]かテストする
     testEqualityDeltaBetweenDts(dt_all)
 
-    q_calc_end_dt = dt_all[0] + datetime.timedelta(
-        days=dynamicDaysLen
-    )  # スタートの日時から{dynamicDaysLen}日後
+    # 実測値の日時データからトリムして計算値用の日時データを作るので
+    # トリムする範囲を指定するためのインデックスを求める
+    q_calc_end_dt = dt_all[0] + datetime.timedelta(days=dynamicDaysLen)
     q_calc_end_dt_index = 0
     for i, dt_crr in enumerate(dt_all):
         if dt_crr > q_calc_end_dt:
@@ -211,14 +210,14 @@ def main():
     print(
         f"dts_q_calc_all_with_{(fixedDaysLen - dynamicDaysLen) * 24 / 2}hours_delay[-1]: {dts_q_calc_all_with_lag[-1]}"
     )
-    Q_calc_all = list(
+    Q_calc_all_applied_lag = list(
         map(
             lambda dt: max(calcQ(dt, 33.82794, 132.75093), 0) / 1000,
             dts_q_calc_all_with_lag,
         )
     )
 
-    corr = np.correlate(Q_all, Q_calc_all)
+    corr = np.correlate(Q_all, Q_calc_all_applied_lag)
 
     print(f"{corr.argmax()}秒スライドさせたとき相互相関が最大")  # corr.argmax()秒スライドさせた時が相互相関が最大
     largest_lag_sec = 6 * 60 * 60 - corr.argmax()
@@ -248,17 +247,6 @@ def main():
         label="計算値(相互相関が最大となるラグを適用)",
         linestyle="dashed",
     )
-    # axes[0].plot(
-    #     dts_q_calc_all,
-    #     list(
-    #         map(
-    #             lambda dt: max(calcQ(dt, 33.82794, 132.75093), 0) / 1000,
-    #             dts_q_calc_all,
-    #         )
-    #     ),
-    #     label="計算値",
-    #     linestyle="dashdot",
-    # )
 
     axes[0][1].set_xlabel("日時")
     axes[0][1].set_ylabel("日射量[kW/m^2]")
