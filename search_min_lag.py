@@ -1,18 +1,9 @@
 import datetime
-from operator import itemgetter
 from es import fetch
-from utils.file import getPickleFilePathByDatetime
-from utils.numerical_processing import min_max
-from utils.date import getRelativePositionBetweenTwoDts
 import sys
-import pickle
-from es.util import sortDocsByKey, isoformats2dt, extractFieldsFromDocs
-from itertools import chain
 from com_global import calcQ
-import matplotlib.pyplot as plt
 import numpy as np
 import japanize_matplotlib
-import copy
 import math
 from correlogram import loadQAndDtForPeriod, unifyDeltasBetweenDts
 
