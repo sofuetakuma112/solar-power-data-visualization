@@ -2,7 +2,6 @@ import datetime
 from operator import itemgetter
 from es import fetch
 from utils.file import getPickleFilePathByDatetime
-from utils.numerical_processing import min_max
 from utils.date import getRelativePositionBetweenTwoDts
 import sys
 import pickle
@@ -14,6 +13,7 @@ import numpy as np
 import japanize_matplotlib
 import copy
 import math
+from utils.correlogram import testEqualityDeltaBetweenDts
 
 
 def loadQAndDtForPeriod(startDt, span):
@@ -135,22 +135,6 @@ def unifyDeltasBetweenDts(dts, qs):
         list(map(lambda dt_and_q: dt_and_q[0], merged_dt_and_q_list)),
         list(map(lambda dt_and_q: dt_and_q[1], merged_dt_and_q_list)),
     ]
-
-
-def testEqualityDeltaBetweenDts(dts, delta=1.0):
-    """
-    日時データのdeltaが1[s]で統一されているかテストする
-    """
-    for i in range(len(dts)):
-        if len(dts) - 1 == i:
-            break
-        diff = dts[i + 1] - dts[i]
-        if diff.total_seconds() != delta:  # 日時のデルタが1sではない
-            print(f"i: {i}")
-            print(f"dts[i + 1]: {dts[i + 1]}")
-            print(f"dts[i]: {dts[i]}")
-            print(diff.total_seconds())
-            raise ValueError("error!")
 
 
 def main():

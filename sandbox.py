@@ -80,16 +80,19 @@ if __name__ == "__main__":
     # for i in range(len(list)):
     #     print(i)
 
-    dt5 = datetime.datetime(2018, 12, 31, 5, 1, 11, 300000)
-    dt6 = datetime.datetime(2018, 12, 31, 5, 1, 12)
-    dt7 = datetime.datetime(2018, 12, 31, 5, 1, 12)
-    dt8 = datetime.datetime(2018, 12, 31, 5, 1, 14, 200000)
+    # dt5 = datetime.datetime(2018, 12, 31, 5, 1, 11, 300000)
+    # dt6 = datetime.datetime(2018, 12, 31, 5, 1, 12)
+    # dt7 = datetime.datetime(2018, 12, 31, 5, 1, 12)
+    # dt8 = datetime.datetime(2018, 12, 31, 5, 1, 14, 200000)
 
-    print(dt5.microsecond)
-    print(dt6.microsecond)
-    print(dt7.microsecond)
-    print(dt8.microsecond)
+    # print(dt5.microsecond)
+    # print(dt6.microsecond)
+    # print(dt7.microsecond)
+    # print(dt8.microsecond)
 
-    print(datetime.datetime(2022, 5, 21, 0, 4, 7, 200515).microsecond == 0)
+    # print(datetime.datetime(2022, 5, 21, 0, 4, 7, 200515).microsecond == 0)
 
-    print(list(map(lambda x: x / 10, range(1, 11))))
+    # print(list(map(lambda x: x / 10, range(1, 11))))
+
+    print(calcQ(datetime.datetime(2022, 4, 1, 12, 0, 0), 33.82794, 132.75093))
+    print(calcQ(datetime.datetime(2022, 4, 1, 12, 0, 1), 33.82794, 132.75093))

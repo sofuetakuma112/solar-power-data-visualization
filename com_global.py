@@ -43,7 +43,8 @@ def calcQ(dt, lat_deg, lng_deg):
     lng_diff = (lng_deg - 135) / 180 * np.pi  # 経度差
 
     def calc_h(dt, lng_diff, eq):
-        return (dt.hour + dt.minute / 60 - 12) / 12 * np.pi + lng_diff + eq
+        # return (dt.hour + dt.minute / 60 - 12) / 12 * np.pi + lng_diff + eq
+        return (dt.hour + dt.minute / 60 + dt.second / (60 * 60) - 12) / 12 * np.pi + lng_diff + eq
 
     # 太陽高度のarcsinの引数になる値
     def calc_sun_altitude_like(h, delta, phi):
