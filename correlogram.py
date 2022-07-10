@@ -232,8 +232,8 @@ def main():
         linestyle="dashed",
     )
 
-    axes[0][1].set_xlabel("日時")
-    axes[0][1].set_ylabel("日射量[kW/m^2]")
+    axes[0][1].set_xlabel("日時", fontsize=20)
+    axes[0][1].set_ylabel("日射量[kW/m^2]", fontsize=20)
 
     print(f"len(corr): {len(corr)}")
 
@@ -247,8 +247,11 @@ def main():
         corr,
         color="r",
     )
+    axes[0][1].tick_params(axis="x", labelsize=20)
+    axes[0][1].tick_params(axis="y", labelsize=20)
 
-    axes[0][0].legend()
+    axes[0][0].legend(fontsize=20)
+    axes[1][0].legend()
     plt.show()
 
 
