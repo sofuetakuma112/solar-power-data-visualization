@@ -5,7 +5,7 @@ import datetime
 from operator import itemgetter
 from utils.q import calcQ
 import numpy as np
-from es.util import sortDocsByKey, isoformats2dt, extractFieldsFromDocs
+from utils.es.util import sortDocsByKey, isoformats2dt, extractFieldsFromDocs
 from utils.numerical_processing import min_max
 
 

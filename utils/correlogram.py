@@ -1,10 +1,10 @@
 import datetime
 from operator import itemgetter
-from es import fetch
+from utils.es import fetch
 from utils.file import getPickleFilePathByDatetime
 from utils.date import getRelativePositionBetweenTwoDts
 import pickle
-from es.util import sortDocsByKey, isoformats2dt, extractFieldsFromDocs
+from utils.es.util import sortDocsByKey, isoformats2dt, extractFieldsFromDocs
 from itertools import chain
 from utils.q import calcQ
 import numpy as np

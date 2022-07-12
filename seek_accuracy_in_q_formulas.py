@@ -1,5 +1,5 @@
 import datetime
-from es import fetch
+from utils.es import fetch
 import sys
 from utils.q import calcQ
 import numpy as np

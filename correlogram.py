@@ -1,5 +1,5 @@
 import datetime
-from es import fetch
+from utils.es import fetch
 import sys
 from utils.q import calcQ
 import matplotlib.pyplot as plt
@@ -128,7 +128,6 @@ def main():
     axes[0][1].tick_params(axis="y", labelsize=20)
 
     axes[0][0].legend(fontsize=20)
-    axes[1][0].legend()
     plt.show()
 
 

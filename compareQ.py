@@ -1,7 +1,6 @@
 import datetime
 
-from numpy import number
-from es import fetch
+from utils.es import fetch
 from plotQOnGivenDay import plotQs
 from time_diff_in_actual_Q import timeDiffInActualQ
 from utils.file import getPickleFilePathByDatetime
