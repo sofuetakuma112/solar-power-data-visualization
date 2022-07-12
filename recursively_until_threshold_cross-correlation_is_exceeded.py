@@ -2,51 +2,19 @@ import datetime
 from utils.es.fetch import fetchDocsByPeriod
 import sys
 from utils.q import calcQ
-import matplotlib.pyplot as plt
 import numpy as np
 import japanize_matplotlib
-import copy
 import math
 from utils.correlogram import (
     testEqualityDeltaBetweenDts,
     unifyDeltasBetweenDts,
+    calcQCalcEndDtIndex,
+    slidesQCalcForCorr,
 )
 from utils.es.load import loadQAndDtForPeriod
 
-# 実測値の日時データからトリムして計算値用の日時データを作るので
-# トリムする範囲を指定するためのインデックスを求める
-def calcQCalcEndDtIndex(dts, dynamicSpanLen):
-    q_calc_end_dt = dts[0] + datetime.timedelta(days=dynamicSpanLen)
-    for i, dt_crr in enumerate(dts):
-        if dt_crr > q_calc_end_dt:
-            return i
-    raise ValueError("実測値の日時列の長さが足りない")
 
-
-# 相互相関の計算のために、計算値の日射量データの時系列データをずらす
-def slidesQCalcForCorr(dts, dt_last_index, fixedSpanLen, dynamicSpanLen):
-    dtStartLag_float, dtStartLag_int = math.modf((fixedSpanLen - dynamicSpanLen) / 2)
-
-    # Q_calc_allの時系列データを実測値の時系列データより6時間進める
-    # 相互コレログラムを計算する際、計算値を{(fixedSpanLen - dynamicSpanLen) * 24 / 2}時間({(fixedSpanLen - dynamicSpanLen) / 2}日)シフトさせたタイミングで計算値と実測値の時系列データのズレが消える
-    dts_q_calc_all = dts[:dt_last_index]
-    dts_q_calc_all_with_lag = list(
-        map(
-            lambda dt: dt
-            + datetime.timedelta(days=dtStartLag_int)
-            + datetime.timedelta(hours=dtStartLag_float * 24),
-            dts_q_calc_all,
-        )
-    )
-
-    return list(
-        map(
-            lambda dt: max(calcQ(dt, 33.82794, 132.75093), 0) / 1000,
-            dts_q_calc_all_with_lag,
-        )
-    )
-
-
+# > python3 recursively_until_threshold_cross-correlation_is_exceeded.py 2022/04/01 2.5 2 0.27
 # 相互相関の平均の最大値とその時のラグを返す
 def calcCorr(fromDt, toDt, fixedSpanLen, dynamicSpanLen):
     fetchDocsByPeriod(fromDt, toDt)  # pickleファイルがない場合、取得する

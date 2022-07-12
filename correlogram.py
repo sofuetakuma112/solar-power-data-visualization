@@ -6,10 +6,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import japanize_matplotlib
 import copy
-import math
 from utils.correlogram import (
     testEqualityDeltaBetweenDts,
     unifyDeltasBetweenDts,
+    calcQCalcEndDtIndex,
+    slidesQCalcForCorr,
 )
 from utils.es.load import loadQAndDtForPeriod
 
@@ -43,40 +44,13 @@ def main():
 
     # 実測値の日時データからトリムして計算値用の日時データを作るので
     # トリムする範囲を指定するためのインデックスを求める
-    q_calc_end_dt = dt_all[0] + datetime.timedelta(days=dynamicDaysLen)
-    q_calc_end_dt_index = 0
-    for i, dt_crr in enumerate(dt_all):
-        if dt_crr > q_calc_end_dt:
-            q_calc_end_dt_index = i
-            break
+    q_calc_end_dt_index = calcQCalcEndDtIndex(dt_all, dynamicDaysLen)
     print(f"dt_all列の先頭の日時から{dynamicDaysLen}日後の日時: {dt_all[q_calc_end_dt_index]}")
-
-    dtStartLag_float, dtStartLag_int = math.modf((fixedDaysLen - dynamicDaysLen) / 2)
 
     # Q_calc_allの時系列データを実測値の時系列データより6時間進める
     # 相互コレログラムを計算する際、計算値を{(fixedDaysLen - dynamicDaysLen) * 24 / 2}時間({(fixedDaysLen - dynamicDaysLen) / 2}日)シフトさせたタイミングで計算値と実測値の時系列データのズレが消える
     dts_q_calc_all = dt_all[:q_calc_end_dt_index]
-    dts_q_calc_all_with_lag = list(
-        map(
-            lambda dt: dt
-            + datetime.timedelta(days=dtStartLag_int)
-            + datetime.timedelta(hours=dtStartLag_float * 24),
-            dts_q_calc_all,
-        )
-    )
-
-    print(
-        f"dts_q_calc_all_with_{(fixedDaysLen - dynamicDaysLen) * 24 / 2}hours_delay[0]: {dts_q_calc_all_with_lag[0]}"
-    )
-    print(
-        f"dts_q_calc_all_with_{(fixedDaysLen - dynamicDaysLen) * 24 / 2}hours_delay[-1]: {dts_q_calc_all_with_lag[-1]}"
-    )
-    Q_calc_all_applied_lag = list(
-        map(
-            lambda dt: max(calcQ(dt, 33.82794, 132.75093), 0) / 1000,
-            dts_q_calc_all_with_lag,
-        )
-    )
+    Q_calc_all_applied_lag = slidesQCalcForCorr(dt_all, q_calc_end_dt_index, fixedDaysLen, dynamicDaysLen)
 
     corr = np.correlate(Q_all, Q_calc_all_applied_lag)
 
