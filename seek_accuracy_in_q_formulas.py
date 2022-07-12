@@ -1,7 +1,7 @@
 import datetime
 from es import fetch
 import sys
-from com_global import calcQ
+from utils.q import calcQ
 import numpy as np
 import japanize_matplotlib
 import math

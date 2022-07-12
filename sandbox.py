@@ -4,7 +4,7 @@ import japanize_matplotlib
 import datetime
 from operator import itemgetter
 
-from com_global import calcQ
+from utils.q import calcQ
 import sys
 import os
 

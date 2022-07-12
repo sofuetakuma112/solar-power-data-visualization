@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import japanize_matplotlib
 import datetime
 from operator import itemgetter
-from com_global import calcQ
+from utils.q import calcQ
 import numpy as np
 from es.util import sortDocsByKey, isoformats2dt, extractFieldsFromDocs
 from utils.numerical_processing import min_max
