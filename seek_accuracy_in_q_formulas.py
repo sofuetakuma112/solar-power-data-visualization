@@ -102,7 +102,7 @@ def main():
         list(map(lambda l: l[1], filteredCorrWithDiff_list)),
         color="r",
     )
-    axes[0][1].set_xlabel("2つの波形の日時のズレ[s]")
+    axes[0][1].set_xlabel("2つの時系列データの日時のズレ[s]")
     axes[0][1].set_ylabel("相互相関")
 
     plt.show()

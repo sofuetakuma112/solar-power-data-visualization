@@ -47,8 +47,7 @@ def main():
     # 相互相関を求めるために計算値の日時を(スライド全量 / 2)だけずらす
     dts_for_calc_applied_lag = shiftDts(dts_for_calc, dtStartLag_int, dtStartLag_float)
 
-    # 相互相関が最大となるラグを返す
-    largest_lag_sec = calcLag(Q_all, dts_for_calc_applied_lag)
+    largest_lag_sec = calcLag(Q_all, dts_for_calc_applied_lag)  # 相互相関が最大となるラグを返す
     print(f"largest_lag_sec: {largest_lag_sec}")
     dts_applied_largest_lag_sec = list(
         map(
@@ -64,37 +63,56 @@ def main():
 
     # 1: 計算値を係数掛けした時の相互相関を計算して最大のラグを求める
     if type == 1:
-        coefs = list(map(lambda x: x / 10, range(1, 11)))
+        # coefs = list(map(lambda x: x / 10, range(1, 11)))
+        coefs = [0.1, 0.7, 0.8, 0.9]
         axes = [plt.subplots() for _ in range(len(coefs))]
 
         lags_sec = []
-        for i, coef in enumerate(coefs):  # [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+        for i, coef in enumerate(
+            coefs
+        ):  # [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
             Qs_calc = list(
                 map(
                     lambda dt: max(calcQ(dt, 33.82794, 132.75093), 0) * coef / 1000,
-                    dts_applied_largest_lag_sec,
+                    # dts_applied_largest_lag_sec,
+                    dts_for_calc,
                 )
             )
 
-            axes[i][1].set_xlabel("日時")
-            axes[i][1].set_ylabel("日射量")
+            largest_lag_sec = calcLag(
+                Q_all,
+                # dts_for_calc_applied_lag_and_half_slides,
+                shiftDts(dts_for_calc, dtStartLag_int, dtStartLag_float),
+                coef,
+            )
+
+            axes[i][1].set_xlabel("日時", fontsize=14)
+            axes[i][1].set_ylabel("日射量", fontsize=14)
             axes[i][1].plot(
                 dt_all,
                 Q_all,
                 label="実測値",
             )
             axes[i][1].plot(
-                dt_all[:q_calc_end_dt_index],
+                # dts_for_calc,
+                list(
+                    map(
+                        lambda dt: dt
+                        + datetime.timedelta(seconds=int(largest_lag_sec)),
+                        dts_for_calc,
+                    )
+                ),
                 Qs_calc,
                 label="計算値(相互相関が最大となるラグを適用)",
             )
-            axes[i][0].legend()
+            axes[i][1].tick_params(axis="x", labelsize=14)
+            axes[i][1].tick_params(axis="y", labelsize=14)
+            axes[i][0].legend(fontsize=14)
 
-            largest_lag_sec = calcLag(Q_all, dts_for_calc_applied_lag_and_half_slides, coef)
             print(f"coef: {coef}, largest_lag_sec: {largest_lag_sec}")
             lags_sec.append(largest_lag_sec)
         print(f"min(lags_sec): {min(lags_sec)}")
-
+        
         plt.show()
 
     # 2: 実測値をラグを適用した計算値の各日時ごとの日射量比を求める
