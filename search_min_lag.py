@@ -5,9 +5,10 @@ from utils.q import calcQ
 import numpy as np
 import japanize_matplotlib
 import math
-from correlogram import loadQAndDtForPeriod, unifyDeltasBetweenDts
+from correlogram import unifyDeltasBetweenDts
 import matplotlib.pyplot as plt
 from utils.correlogram import calcLag, shiftDts
+from utils.es.load import loadQAndDtForPeriod
 
 def main():
     args = sys.argv

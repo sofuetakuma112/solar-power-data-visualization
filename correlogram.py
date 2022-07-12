@@ -9,9 +9,9 @@ import copy
 import math
 from utils.correlogram import (
     testEqualityDeltaBetweenDts,
-    loadQAndDtForPeriod,
     unifyDeltasBetweenDts,
 )
+from utils.es.load import loadQAndDtForPeriod
 
 # > python3 correlogram.py 2022/04/01 2022/04/08 7.5 7
 def main():
@@ -83,6 +83,8 @@ def main():
     print(f"{corr.argmax()}秒スライドさせたとき相互相関が最大")  # corr.argmax()秒スライドさせた時が相互相関が最大
     largest_lag_sec = 6 * 60 * 60 - corr.argmax()
     print(f"真の計算値の時間 - 実測値の時間: {largest_lag_sec}")
+
+    print(f"相互相関の最大値 / 計算値のデータ列の長さ: {corr.max() / len(Q_calc_all_applied_lag)}")
 
     # axes = [plt.subplots()[1] for i in range(2)]
     axes = [plt.subplots() for _ in range(2)]

@@ -1,13 +1,11 @@
 import datetime
-from utils.es import fetch
 import sys
 from utils.q import calcQ
 import numpy as np
 import japanize_matplotlib
 import math
-from correlogram import loadQAndDtForPeriod, unifyDeltasBetweenDts
 import matplotlib.pyplot as plt
-from utils.correlogram import calcLag, shiftDts, testEqualityDeltaBetweenDts
+from utils.correlogram import shiftDts, testEqualityDeltaBetweenDts
 
 
 def main():
@@ -21,8 +19,6 @@ def main():
     coef = float(args[6])
 
     fromDt = datetime.datetime(int(fromDtStr[0]), int(fromDtStr[1]), int(fromDtStr[2]))
-
-    print(f"fromDt: {fromDt}")
 
     # TODO: dtsをdelta t = 1s で作る
     dts = [fromDt]
