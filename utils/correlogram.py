@@ -66,6 +66,32 @@ def testEqualityDeltaBetweenDts(dts, delta=1.0):
             print(diff.total_seconds())
             raise ValueError("error!")
 
+# データがない日が含めて読み込んだ場合、エラーを投げるようにしたのでこの関数は不要
+# def checkAnyDaysWithNoDataIncluded(startDt, span):
+#     dt_all, Q_all = loadQAndDtForPeriod(startDt, span)
+    
+#     # 日毎にスプリットしてデータをチェックする
+#     baseDt = dt_all[0]
+#     crrIdx = 1
+#     qs_per_day = []
+#     while True:
+#         crrDt = dt_all[crrIdx]
+#         if baseDt.year == crrDt.year and baseDt.month == crrDt.month and baseDt.day == crrDt.day:
+#             # まだ同じ日付
+#             qs_per_day.append(Q_all[crrIdx])
+#         else:
+#             # 次の日付に移った
+#             baseDt = dt_all[crrIdx]
+            
+#             # 日射量データ列が有効かチェック
+            
+            
+#             # 日射量データ列を初期化
+#             qs_per_day = []
+#         crrIdx += 1
+#         if crrIdx > len(dt_all):
+#             break
+
 
 def getDtListAndCoefBeCompleted(dts, qs):
     """

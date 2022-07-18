@@ -43,7 +43,7 @@ def loadQAndDtForPeriod(startDt, span):
         dt_all = list(chain(dt_all, dts_per_day))
 
         if len(Qs_per_day) < 10:
-            print(f"データがない日: {dt_crr}")
+            raise ValueError(f"データがない日が含まれている: {dt_crr}")
 
         dt_crr = dt_crr + datetime.timedelta(days=1)
         loopCount += 1
@@ -51,7 +51,7 @@ def loadQAndDtForPeriod(startDt, span):
     return [dt_all, Q_all]
 
 
-def loadQAndDtForAGivenPeriod(fromDt, toDt):
+def loadQAndDtForAGivenPeriod(fromDt, toDt, includesNoDataDay = False):
     Q_all = []
     dt_all = []
     dtDiff = toDt - fromDt
@@ -69,8 +69,8 @@ def loadQAndDtForAGivenPeriod(fromDt, toDt):
         Q_all = list(chain(Q_all, Qs_per_day))
         dt_all = list(chain(dt_all, dts_per_day))
 
-        if len(Qs_per_day) < 10:
-            print(f"データがない日: {dt_crr}")
+        if len(Qs_per_day) < 10 and not includesNoDataDay:
+            raise ValueError(f"データがない日が含まれている: {dt_crr}")
 
         dt_crr = dt_crr + datetime.timedelta(days=1)
 

@@ -12,6 +12,7 @@ from utils.correlogram import (
     slidesQCalcForCorr,
 )
 from utils.es.load import loadQAndDtForPeriod
+import csv
 
 
 # > python3 recursively_until_threshold_cross-correlation_is_exceeded.py 2022/04/01 2.5 2 0.27
@@ -53,6 +54,9 @@ def main():
 
     while True:
         corr_max, lag = calcCorr(fromDt, toDt, fixedDaysLen, dynamicDaysLen)
+        with open('data/csv/corr_avg_lag.csv', 'a') as f:
+            writer = csv.writer(f)
+            writer.writerow([fromDt, fixedDaysLen, dynamicDaysLen, corr_max, lag])
         print(f"corr_max: {corr_max}")
         if corr_max > threshold:  # しきい値を超えた
             break
@@ -60,6 +64,7 @@ def main():
         fixedDaysLen += 1
         dynamicDaysLen += 1
         toDt = fromDt + datetime.timedelta(days=math.ceil(fixedDaysLen))
+        
 
     print(
         f"結果: fromDt: {fromDt}, fixedDaysLen: {fixedDaysLen}, dynamicDaysLen: {dynamicDaysLen}, lag: {lag}, 相互相関の平均の最大値: {corr_max}"

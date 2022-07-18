@@ -2,8 +2,9 @@ import datetime
 import sys
 import matplotlib.pyplot as plt
 import japanize_matplotlib
-from correlogram import loadQAndDtForAGivenPeriod
+from utils.es.load import loadQAndDtForAGivenPeriod
 
+# > python3 plotQOnGivenSpan.py 2022/04/01 00:00:00 2022/05/01 00:00:00
 if __name__ == "__main__":
     args = sys.argv
 
@@ -30,7 +31,7 @@ if __name__ == "__main__":
         int(toDtTillSec_str[2]),
     )
 
-    dt_all, Q_all = loadQAndDtForAGivenPeriod(fromDt, toDt)
+    dt_all, Q_all = loadQAndDtForAGivenPeriod(fromDt, toDt, True)
 
     axes = [plt.subplots()[1] for i in range(1)]
 
