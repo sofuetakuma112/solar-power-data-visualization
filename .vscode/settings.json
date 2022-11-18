@@ -1,0 +1,11 @@
+{
+  "python.formatting.provider": "black",
+  "cSpell.words": [
+    "coef",
+    "coefs",
+    "fontsize",
+    "labelsize",
+    "xlabel",
+    "ylabel"
+  ]
+}
