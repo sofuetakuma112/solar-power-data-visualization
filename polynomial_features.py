@@ -46,7 +46,7 @@ from utils.correlogram import (
     NotEnoughLengthErr,
     testEqualityDeltaBetweenDts,
     unifyDeltasBetweenDts,
-    calcQCalcEndDtIndex,
+    calc_dts_for_q_calc,
     slidesQCalcForCorr,
     calcRatios,
 )

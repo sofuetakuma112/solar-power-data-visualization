@@ -8,7 +8,7 @@ from utils.correlogram import (
     NotEnoughLengthErr,
     testEqualityDeltaBetweenDts,
     unifyDeltasBetweenDts,
-    calcQCalcEndDtIndex,
+    calc_dts_for_q_calc,
     slidesQCalcForCorr,
     calcRatios,
 )
@@ -83,7 +83,7 @@ def calc_corr(
     testEqualityDeltaBetweenDts(dt_all)  # 時系列データの点間が全て1.0[s]かテストする
 
     # 【デバッグ】
-    Q_all_cached = copy.deepcopy(Q_all)
+    # Q_all_cached = copy.deepcopy(Q_all)
 
     print(f"dt_all[-1]: {dt_all[-1]}")
 
@@ -179,29 +179,27 @@ def calc_corr(
         else:
             raise ValueError("不正なq_modification_strategy")
 
-    # FIXME: ここで計算値用のdtリストを作成して返すべき
-    q_calc_end_dt_index_or_err = calcQCalcEndDtIndex(dt_all, dynamicSpanLen)
+    dts_for_q_calc_or_err = calc_dts_for_q_calc(dt_all, dynamicSpanLen)
 
-    q_calc_end_dt_index = None
-    if isinstance(q_calc_end_dt_index_or_err, NotEnoughLengthErr):
-        return q_calc_end_dt_index_or_err, None
+    dts_for_q_calc = []
+    if isinstance(dts_for_q_calc_or_err, NotEnoughLengthErr):
+        return dts_for_q_calc_or_err, None
     else:
-        q_calc_end_dt_index = q_calc_end_dt_index_or_err
+        dts_for_q_calc = dts_for_q_calc_or_err
 
     # Q_calc_allの時系列データを実測値の時系列データより進める
     # fixedSpanLen: 2.5, dynamicSpanLen: 2.0で差が0.5日の場合、計算用の日時列は6時間進んだ状態に変化する
     # 計算値の日時をスライドさせる全量の半分だけ進めた状態で相互相関を求めることで、全量の半分スライドさせたときに相互相関が最大となる
     Q_calc_all_applied_lag = slidesQCalcForCorr(
-        dt_all, q_calc_end_dt_index, fixedSpanLen, dynamicSpanLen
+        dts_for_q_calc, fixedSpanLen, dynamicSpanLen
     )
 
     # 【デバッグ】
-    start_idx = calc_start_idx_for_slide(dt_all, fixedSpanLen, dynamicSpanLen)
+    # start_idx = calc_start_idx_for_slide(dt_all, fixedSpanLen, dynamicSpanLen)
     # 【デバッグ】
-    corr = np.correlate(Q_all, Q_all_cached[start_idx:-start_idx])
+    # corr = np.correlate(Q_all, Q_all_cached[start_idx:-start_idx])
 
-    # corr = np.correlate(Q_all, Q_calc_all_applied_lag)
-
+    corr = np.correlate(Q_all, Q_calc_all_applied_lag)
     largest_lag_sec = 6 * 60 * 60 - corr.argmax()
 
     # 時系列データの1単位あたりの相互相関の値を返す

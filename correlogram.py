@@ -7,9 +7,10 @@ import numpy as np
 import japanize_matplotlib
 import copy
 from utils.correlogram import (
+    NotEnoughLengthErr,
     testEqualityDeltaBetweenDts,
     unifyDeltasBetweenDts,
-    calcQCalcEndDtIndex,
+    calc_dts_for_q_calc,
     slidesQCalcForCorr,
 )
 from utils.es.load import loadQAndDtForPeriod
@@ -23,7 +24,9 @@ def main():
     parser.add_argument("-fd", type=float, default=2.5)  # fixed day length
     parser.add_argument("-dd", type=float, default=2.0)  # dynamic day length
     parser.add_argument("-p", type=float, default=1.0)  # percentage of data
-    parser.add_argument("-tp", type=int, default=1.0)  # 相互相関を計算する際に理論値の波形に近い波形を上位何日使用するか
+    parser.add_argument(
+        "-tp", type=int, default=1.0
+    )  # 相互相関を計算する際に理論値の波形に近い波形を上位何日使用するか
     parser.add_argument("-rz", "--replace_zero", action="store_true")
     parser.add_argument("-sl", "--should_log", action="store_true")  # ログを取るか
     args = parser.parse_args()
@@ -53,13 +56,21 @@ def main():
 
     # 実測値の日時データからトリムして計算値用の日時データを作るので
     # トリムする範囲を指定するためのインデックスを求める
-    q_calc_end_dt_index = calcQCalcEndDtIndex(dt_all, dynamicDaysLen)
-    print(f"dt_all列の先頭の日時から{dynamicDaysLen}日後の日時: {dt_all[q_calc_end_dt_index]}")
+    dts_for_q_calc_or_err = calc_dts_for_q_calc(dt_all, dynamicDaysLen)
+
+    dts_for_q_calc = []
+    if isinstance(dts_for_q_calc_or_err, NotEnoughLengthErr):
+        return dts_for_q_calc_or_err, None
+    else:
+        dts_for_q_calc = dts_for_q_calc_or_err
+
+    print(f"dt_all列の先頭の日時から{dynamicDaysLen}日後の日時: {dts_for_q_calc[-1]}")
 
     # Q_calc_allの時系列データを実測値の時系列データより6時間進める
     # 相互コレログラムを計算する際、計算値を{(fixedDaysLen - dynamicDaysLen) * 24 / 2}時間({(fixedDaysLen - dynamicDaysLen) / 2}日)シフトさせたタイミングで計算値と実測値の時系列データのズレが消える
-    dts_q_calc_all = dt_all[:q_calc_end_dt_index]
-    Q_calc_all_applied_lag = slidesQCalcForCorr(dt_all, q_calc_end_dt_index, fixedDaysLen, dynamicDaysLen)
+    Q_calc_all_applied_lag = slidesQCalcForCorr(
+        dts_for_q_calc, fixedDaysLen, dynamicDaysLen
+    )
 
     corr = np.correlate(Q_all, Q_calc_all_applied_lag)
 
@@ -79,11 +90,11 @@ def main():
     slided_dts_with_largest_lag_sec = list(
         map(
             lambda dt: dt + datetime.timedelta(seconds=int(largest_lag_sec)),
-            dts_q_calc_all,
+            dts_for_q_calc,
         )
     )
     axes[0][1].plot(
-        dts_q_calc_all,
+        dts_for_q_calc,
         list(
             map(
                 lambda dt: max(calcQ(dt, 33.82794, 132.75093), 0) / 1000,
