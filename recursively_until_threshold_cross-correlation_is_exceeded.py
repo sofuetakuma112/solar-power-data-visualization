@@ -62,6 +62,7 @@ def calc_corr(
     percentageOfData,
     q_modification_strategy,
     top_n=INIT_TOP_N,
+    no_missing_data_err=False,
 ):
     """
     相互相関の平均の最大値とその時のラグを返す
@@ -70,7 +71,7 @@ def calc_corr(
     """
     fetchDocsByPeriod(fromDt, toDt)  # pickleファイルがない場合、取得する
     dt_all_or_err, Q_all = loadQAndDtForPeriod(  # 計算値をスライドさせるため、固定側は動的側より長いリスト長が必要となる
-        fromDt, fixedSpanLen
+        fromDt, fixedSpanLen, no_missing_data_err
     )  # 与えた期間の日射量と計測日時をファイルから読み込む(dtでソート済み)
 
     dt_all = None
@@ -214,6 +215,7 @@ def calc_corr_at_once(
     dynamicDaysLen,
     percentageOfData,
     top_n,
+    no_missing_data_err,
 ):
     fromDt = datetime.datetime(int(fromDtStr[0]), int(fromDtStr[1]), int(fromDtStr[2]))
     toDt = fromDt + datetime.timedelta(days=math.ceil(fixedDaysLen))
@@ -244,6 +246,7 @@ def calc_corr_at_once(
         percentageOfData,
         q_modification_strategy,
         top_n,
+        no_missing_data_err,
     )
 
     corr_max_per_one_time_unit = None
@@ -274,6 +277,7 @@ def search_optimal_lag(
     dynamicDaysLen,
     threshold,
     percentageOfData,
+    no_missing_data_err,
     should_log=False,
 ):
     fixed_days_len_copied = fixedDaysLen
@@ -362,6 +366,7 @@ def search_optimal_lag(
         if datetime.datetime.now().timestamp() < fromDt.timestamp():
             break
 
+        no_filtering_actual_data = -1
         corr_max_per_one_time_unit_or_err, lag = calc_corr(
             fromDt,
             toDt,
@@ -369,6 +374,8 @@ def search_optimal_lag(
             dynamicDaysLen,
             percentageOfData,
             q_modification_strategy,
+            no_filtering_actual_data,
+            no_missing_data_err,
         )
 
         corr_max_per_one_time_unit = None
@@ -503,6 +510,9 @@ def main():
     )  # 期間をスライドさせる際に重複を許可するか
     parser.add_argument("-sl", "--should_log", action="store_true")  # ログを取るか
     parser.add_argument("-fp", "--fix_position", action="store_true")  # 開始日を固定して伸ばしていくか
+    parser.add_argument(
+        "-nmde", "--no_missing_data_err", action="store_true"
+    )  # データがないデータ点の日射量を0扱いにしてエラーとして扱わないか
     args = parser.parse_args()
 
     fromDtStr = args.f.split("/")
@@ -523,6 +533,7 @@ def main():
         q_modification_strategy = MODE_AVG
 
     should_fix_position = args.fix_position
+    no_missing_data_err = args.no_missing_data_err
 
     if args.auto_increment:
         # 再帰的に計算する
@@ -536,6 +547,7 @@ def main():
             dynamicDaysLen,
             threshold,
             percentageOfData,
+            no_missing_data_err,
             args.should_log,
         )
     else:
@@ -547,6 +559,7 @@ def main():
             dynamicDaysLen,
             percentageOfData,
             top_n,
+            no_missing_data_err,
         )
 
 

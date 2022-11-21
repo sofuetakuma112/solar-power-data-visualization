@@ -25,10 +25,11 @@ def fetchDocsByDatetime(dt):
 
     indexName = "pcs_recyclekan"
 
-    if not os.path.exists(f"{os.getcwd()}/pickles"):
-        os.mkdir(f"{os.getcwd()}/pickles")
+    data_type = "raw"
+    if not os.path.exists(f"{os.getcwd()}/pickles/{data_type}"):
+        os.mkdir(f"{os.getcwd()}/pickles/{data_type}")
 
-    filePath = getPickleFilePathByDatetime(dt)
+    filePath = getPickleFilePathByDatetime(dt, data_type)
     # すでにPickleファイルが存在するならElasticSearchから取得しない
     if os.path.isfile(filePath):
         return
