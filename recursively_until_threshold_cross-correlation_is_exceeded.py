@@ -18,7 +18,6 @@ import argparse
 import itertools
 from utils.q import calcQ
 import matplotlib.pyplot as plt
-import copy
 
 MODE_DYNAMIC = "dynamic"
 MODE_FIXED = "fixed"
@@ -88,29 +87,36 @@ def calc_corr(
 
     print(f"dt_all[-1]: {dt_all[-1]}")
 
-    dt_and_q_list = []
-    for d, q in zip(dt_all, Q_all):
-        dt_and_q_list.append((d, q))
+    dt_and_q_list = np.array(
+        list(
+            zip(
+                np.array(dt_all),
+                np.array(Q_all),
+                np.vectorize(dt_to_ymd)(np.array(dt_all)),
+            )
+        )
+    )
+
+    ymds = dt_and_q_list[:, 2]
+    unique_ymds = np.unique(ymds)
+    grouped_by_ymd = [
+        dt_and_q_list[mask] for mask in [ymds == unique_ymd for unique_ymd in unique_ymds]
+    ]
 
     # TODO: top_nを使って上位n日のみを残すフィルタリング処理を実装する
     # 日毎に計算値と実測値の差分の総和を求める
-    grouped_by_ymd = []
-    for _, g in itertools.groupby(
-        dt_and_q_list, lambda dt_and_q: dt_to_ymd(dt_and_q[0])
-    ):
-        grouped_by_ymd.append(list(g))
-
     if top_n != INIT_TOP_N:
-        diff_sums = []  # (単位時間あたりの計算値と実測値の差, YYYY/MM/DD)
+        diff_euclid_distances = []  # (単位時間あたりの計算値と実測値の差, YYYY/MM/DD)
         for dt_and_q_list_per_day in grouped_by_ymd:
-            diff_sum = 0
-            for dt, q in dt_and_q_list_per_day:
+            diff_square_sum = 0
+            for dt, q, _ in dt_and_q_list_per_day:
                 q_calc = max(calcQ(dt, 33.82794, 132.75093), 0) / 1000
-                diff_sum += np.abs(q_calc - q)
+                diff_square_sum += np.square(q_calc - q)  # ユークリッド距離
 
-            diff_sums.append(
+            diff_euclid_distances.append(
                 (
-                    diff_sum / len(dt_and_q_list_per_day),
+                    # diff_sum / len(dt_and_q_list_per_day),
+                    np.sqrt(diff_square_sum),
                     dt_to_ymd(dt_and_q_list_per_day[0][0]),
                 )
             )
@@ -123,9 +129,11 @@ def calc_corr(
         #     )
         # )[:top_n]
 
-        top_n_dts = list(map(lambda t: t[1], sorted(diff_sums, key=lambda t: t[0])))[
-            :top_n
-        ]
+        top_n_dts = list(
+            map(lambda t: t[1], sorted(diff_euclid_distances, key=lambda t: t[0]))
+        )[:top_n]
+
+        print(f"top_n_dts: {top_n_dts}")
 
         # top_n_dtsに含まれている日付のみになるようフィルタリングする
         filtered_dt_and_q_list = list(
