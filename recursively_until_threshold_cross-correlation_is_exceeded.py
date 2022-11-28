@@ -173,6 +173,9 @@ def calc_corr(
     axes[0].set_xlim(fromDt, toDt)
     plt.show()
 
+    dt_all = list(dt_all)
+    Q_all = list(Q_all)
+
     # (実測値 / 理論値)を各日時ごとに計算して、ソートして上から何割かだけの日射量を採用して残りは0にする
     ratios = calcRatios(dt_all, Q_all)
     diffs_between_ratio_and_one = [  # 比が1からどれだけ離れているか
