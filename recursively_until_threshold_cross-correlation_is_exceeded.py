@@ -87,64 +87,83 @@ def calc_corr(
 
     print(f"dt_all[-1]: {dt_all[-1]}")
 
-    dt_and_q_list = np.array(
-        list(
-            zip(
-                np.array(dt_all),
-                np.array(Q_all),
-                np.vectorize(dt_to_ymd)(np.array(dt_all)),
-            )
-        )
-    )
-
-    ymds = dt_and_q_list[:, 2]
-    unique_ymds = np.unique(ymds)
-    grouped_by_ymd = [
-        dt_and_q_list[mask] for mask in [ymds == unique_ymd for unique_ymd in unique_ymds]
-    ]
-
     # TODO: top_nを使って上位n日のみを残すフィルタリング処理を実装する
     # 日毎に計算値と実測値の差分の総和を求める
     if top_n != INIT_TOP_N:
-        diff_euclid_distances = []  # (単位時間あたりの計算値と実測値の差, YYYY/MM/DD)
-        for dt_and_q_list_per_day in grouped_by_ymd:
-            diff_square_sum = 0
-            for dt, q, _ in dt_and_q_list_per_day:
-                q_calc = max(calcQ(dt, 33.82794, 132.75093), 0) / 1000
-                diff_square_sum += np.square(q_calc - q)  # ユークリッド距離
-
-            diff_euclid_distances.append(
-                (
-                    # diff_sum / len(dt_and_q_list_per_day),
-                    np.sqrt(diff_square_sum),
-                    dt_to_ymd(dt_and_q_list_per_day[0][0]),
+        dt_and_q_list = np.array(
+            list(
+                zip(
+                    np.array(dt_all),
+                    np.array(Q_all),
+                    np.vectorize(dt_to_ymd)(np.array(dt_all)),
                 )
-            )
-
-        # 実測値の最終日は基本的にデータが終日分無いので除外してTOPNを求める
-        # top_n_dts = list(
-        #     filter(
-        #         lambda dt_str: dt_str != dt_to_ymd(dt_all[-1]),
-        #         map(lambda t: t[1], sorted(diff_sums, key=lambda t: t[0])),
-        #     )
-        # )[:top_n]
-
-        top_n_dts = list(
-            map(lambda t: t[1], sorted(diff_euclid_distances, key=lambda t: t[0]))
-        )[:top_n]
-
-        print(f"top_n_dts: {top_n_dts}")
-
-        # top_n_dtsに含まれている日付のみになるようフィルタリングする
-        filtered_dt_and_q_list = list(
-            map(
-                lambda t: t if dt_to_ymd(t[0]) in top_n_dts else (t[0], 0),
-                dt_and_q_list,
             )
         )
 
-        dt_all = list(map(lambda t: t[0], filtered_dt_and_q_list))
-        Q_all = list(map(lambda t: t[1], filtered_dt_and_q_list))
+        ymds = dt_and_q_list[:, 2]
+        unique_ymds = np.unique(ymds)
+
+        def set_unique_ymd(unique_ymd):
+            return np.vectorize(lambda ymd: ymd == unique_ymd)
+
+        def calc_daily_diff(get_mask_func):
+            def _calc_daily_diff(dt_and_q_list_per_day):
+                def calc_diff(l):
+                    dt, q, _ = l
+                    q_calc = max(calcQ(dt, 33.82794, 132.75093), 0) / 1000
+                    return np.square(q_calc - q)  # ユークリッド距離
+
+                diff_square_sum_sqrt = np.sqrt(
+                    np.sum(np.apply_along_axis(calc_diff, 1, dt_and_q_list_per_day))
+                )
+
+                return diff_square_sum_sqrt
+
+            masked = dt_and_q_list[get_mask_func(ymds)]
+            return _calc_daily_diff(masked)
+
+        def get_ymd(get_mask_func):
+            masked = dt_and_q_list[get_mask_func(ymds)]
+            return masked[0][-1]
+
+        mask_funcs = np.vectorize(set_unique_ymd)(unique_ymds)
+
+        # FIXME: マスクの作成が2重で走ってるからリファクタする
+        dates = np.vectorize(get_ymd)(mask_funcs)
+        diffs = np.vectorize(calc_daily_diff)(
+            mask_funcs
+        )  # (単位時間あたりの計算値と実測値の差, YYYY/MM/DD)
+
+        diff_euclid_distances = np.concatenate(
+            [diffs.reshape([-1, 1]), dates.reshape([-1, 1])], 1
+        )
+
+        print(f"diff_euclid_distances: {diff_euclid_distances}")
+
+        sorted_row_indexes = diff_euclid_distances[:, 0].astype(np.float32).argsort()
+
+        sorted_dates = np.apply_along_axis(
+            lambda row: row[1], 1, diff_euclid_distances[sorted_row_indexes, :]
+        )
+
+        top_n_dts = sorted_dates[:top_n]
+
+        print(f"top_n_dts: {top_n_dts}")
+
+        def filter_q_by_top_n(l):
+            dt, q, ymd = l
+            if ymd in top_n_dts:
+                return [dt, q, ymd]
+            else:
+                return [dt, 0, ymd]
+
+        # top_n_dtsに含まれている日付のみになるようフィルタリングする
+        filtered_dt_and_q_list = np.apply_along_axis(
+            filter_q_by_top_n, 1, dt_and_q_list
+        )
+
+        dt_all = filtered_dt_and_q_list[:, 0]
+        Q_all = filtered_dt_and_q_list[:, 1]
 
     # 【デバッグ】
     axes = [plt.subplots()[1] for i in range(1)]
