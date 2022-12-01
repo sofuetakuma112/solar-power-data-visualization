@@ -13,11 +13,11 @@ import numpy as np
 from utils.correlogram import (
     testEqualityDeltaBetweenDts,
     unifyDeltasBetweenDts,
-    calcRatios,
+    calc_ratios,
 )
 from utils.es.load import loadQAndDtForPeriod
 from utils.es.fetch import fetchDocsByPeriod
-from utils.q import calcQ
+from utils.q import calc_q_kw
 
 # > python3 plot_filtered_q_by_ratio.py 2022/04/01 2.5 2
 if __name__ == "__main__":
@@ -41,12 +41,12 @@ if __name__ == "__main__":
 
     Q_calc_all = list(
         map(
-            lambda dt: max(calcQ(dt, 33.82794, 132.75093), 0) / 1000,
+            calc_q_kw,
             dt_all,
         )
     )
 
-    ratios = calcRatios(dt_all, Q_all)
+    ratios = calc_ratios(dt_all, Q_all)
     diffs_between_ratio_and_one = [
         (i, np.abs(1 - ratio)) for i, ratio in enumerate(ratios)
     ]

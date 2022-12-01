@@ -47,8 +47,8 @@ from utils.correlogram import (
     testEqualityDeltaBetweenDts,
     unifyDeltasBetweenDts,
     calc_dts_for_q_calc,
-    slidesQCalcForCorr,
-    calcRatios,
+    slides_q_calc_for_corr,
+    calc_ratios,
 )
 from utils.es.load import NotEnoughDocErr, loadQAndDtForPeriod
 import csv
@@ -57,7 +57,7 @@ import argparse
 import numpy as np
 import matplotlib.pyplot as plt
 
-from utils.q import calcQ
+from utils.q import calc_q_kw
 
 if __name__ == "__main__":
 
@@ -101,13 +101,13 @@ if __name__ == "__main__":
 
         Qs_calc = list(
             map(
-                lambda dt: max(calcQ(dt, 33.82794, 132.75093), 0) / 1000,
+                calc_q_kw,
                 dt_all,
             )
         )
 
         # (実測値 / 理論値)を各日時ごとに計算して、ソートして上から何割かだけの日射量を採用して残りは0にする
-        ratios = calcRatios(dt_all, Q_all)
+        ratios = calc_ratios(dt_all, Q_all)
         diffs_between_ratio_and_one = [  # 比が1からどれだけ離れているか
             (i, np.abs(1 - ratio)) for i, ratio in enumerate(ratios)
         ]

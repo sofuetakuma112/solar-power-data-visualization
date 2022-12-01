@@ -1,6 +1,6 @@
 import datetime
 import sys
-from utils.q import calcQ
+from utils.q import calc_q_kw
 import numpy as np
 import japanize_matplotlib
 import math
@@ -41,7 +41,7 @@ def main():
 
     Q_all = list(
         map(
-            lambda dt: max(calcQ(dt, 33.82794, 132.75093), 0) / 1000,
+            calc_q_kw,
             dts,
         )
     )
@@ -68,7 +68,7 @@ def main():
 
     Q_for_calc = list(
         map(
-            lambda dt: max(calcQ(dt, 33.82794, 132.75093), 0) / 1000,
+            calc_q_kw,
             dts_for_calc_applied_lag,
         )
     )

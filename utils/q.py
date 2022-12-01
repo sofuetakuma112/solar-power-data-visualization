@@ -1,7 +1,7 @@
 import numpy as np
 import datetime
 
-
+# 単位はワット
 def calcQ(dt, lat_deg, lng_deg):
     dt_new_year = datetime.datetime(dt.year, 1, 1)
     dt_delta = dt - dt_new_year  # 元旦からの通し日数
@@ -44,7 +44,11 @@ def calcQ(dt, lat_deg, lng_deg):
 
     def calc_h(dt, lng_diff, eq):
         # return (dt.hour + dt.minute / 60 - 12) / 12 * np.pi + lng_diff + eq
-        return (dt.hour + dt.minute / 60 + dt.second / (60 * 60) - 12) / 12 * np.pi + lng_diff + eq
+        return (
+            (dt.hour + dt.minute / 60 + dt.second / (60 * 60) - 12) / 12 * np.pi
+            + lng_diff
+            + eq
+        )
 
     # 太陽高度のarcsinの引数になる値
     def calc_sun_altitude_like(h, delta, phi):
@@ -54,6 +58,11 @@ def calcQ(dt, lat_deg, lng_deg):
 
     sin_alpha = calc_sun_altitude_like(h, delta, phi)
     return 1367 * geocentri_distance_like * sin_alpha
+
+
+# 単位はキロワット
+def calc_q_kw(dt, lng=33.82794, lat=132.75093):
+    return max(calcQ(dt, lng, lat), 0) / 1000
 
 
 if __name__ == "__main__":

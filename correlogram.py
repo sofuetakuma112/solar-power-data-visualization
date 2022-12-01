@@ -1,7 +1,7 @@
 import datetime
 from utils.es import fetch
 import sys
-from utils.q import calcQ
+from utils.q import calc_q_kw
 import matplotlib.pyplot as plt
 import numpy as np
 import japanize_matplotlib
@@ -11,7 +11,7 @@ from utils.correlogram import (
     testEqualityDeltaBetweenDts,
     unifyDeltasBetweenDts,
     calc_dts_for_q_calc,
-    slidesQCalcForCorr,
+    slides_q_calc_for_corr,
 )
 from utils.es.load import loadQAndDtForPeriod
 import argparse
@@ -68,7 +68,7 @@ def main():
 
     # Q_calc_allの時系列データを実測値の時系列データより6時間進める
     # 相互コレログラムを計算する際、計算値を{(fixedDaysLen - dynamicDaysLen) * 24 / 2}時間({(fixedDaysLen - dynamicDaysLen) / 2}日)シフトさせたタイミングで計算値と実測値の時系列データのズレが消える
-    Q_calc_all_applied_lag = slidesQCalcForCorr(
+    Q_calc_all_applied_lag = slides_q_calc_for_corr(
         dts_for_q_calc, fixedDaysLen, dynamicDaysLen
     )
 
@@ -97,7 +97,7 @@ def main():
         dts_for_q_calc,
         list(
             map(
-                lambda dt: max(calcQ(dt, 33.82794, 132.75093), 0) / 1000,
+                calc_q_kw,
                 slided_dts_with_largest_lag_sec,
             )
         ),

@@ -1,6 +1,6 @@
 import datetime
 from utils.date import getRelativePositionBetweenTwoDts
-from utils.q import calcQ
+from utils.q import calc_q_kw
 import numpy as np
 import math
 
@@ -19,7 +19,7 @@ def calcLag(Q_all, dts_for_calc, coef=1):
     """
     Q_for_calc = list(
         map(
-            lambda dt: max(calcQ(dt, 33.82794, 132.75093), 0) * coef / 1000,
+            lambda dt: calc_q_kw(dt) * coef,
             dts_for_calc,
         )
     )
@@ -131,57 +131,88 @@ def calc_dts_for_q_calc(dts, dynamicSpanLen):
     トリムする範囲を指定するためのインデックスを求める
     """
     q_calc_end_dt = dts[0] + datetime.timedelta(days=dynamicSpanLen)
-    end_idx = -1
-    for i, dt_crr in enumerate(dts):
-        if dt_crr > q_calc_end_dt:
-            end_idx = i
-            return dts[:end_idx]
-    return NotEnoughLengthErr()
+    mask = dts <= q_calc_end_dt
+    if np.all(mask):
+        return NotEnoughLengthErr()
+    else:
+        return dts[mask]
+
+    # dts[mask]
+    # end_idx = -1
+    # for i, dt_crr in enumerate(dts):
+    #     if dt_crr > q_calc_end_dt:
+    #         end_idx = i
+    #         return dts[:end_idx]
+    # return NotEnoughLengthErr()
 
 
 # 相互相関の計算のために、計算値の日射量データの時系列データをずらす
-def slidesQCalcForCorr(dts_for_q_calc, fixedSpanLen, dynamicSpanLen):
+def slides_q_calc_for_corr(dts_for_q_calc, fixedSpanLen, dynamicSpanLen):
     dtStartLag_float, dtStartLag_int = math.modf((fixedSpanLen - dynamicSpanLen) / 2)
 
     # Q_calc_allの時系列データを実測値の時系列データより6時間進める
     # 相互コレログラムを計算する際、計算値を{(fixedSpanLen - dynamicSpanLen) * 24 / 2}時間({(fixedSpanLen - dynamicSpanLen) / 2}日)シフトさせたタイミングで計算値と実測値の時系列データのズレが消える
-    dts_for_q_calc_with_lag = list(
-        map(
-            lambda dt: dt
-            + datetime.timedelta(days=dtStartLag_int)
-            + datetime.timedelta(hours=dtStartLag_float * 24),
-            dts_for_q_calc,
-        )
-    )
+    # dts_for_q_calc_with_lag = list(
+    #     map(
+    # lambda dt: dt
+    # + datetime.timedelta(days=dtStartLag_int)
+    # + datetime.timedelta(hours=dtStartLag_float * 24),
+    #         dts_for_q_calc,
+    #     )
+    # )
 
-    return list(
-        map(
-            lambda dt: max(calcQ(dt, 33.82794, 132.75093), 0) / 1000,
-            dts_for_q_calc_with_lag,
-        )
-    )
+    dts_for_q_calc_with_lag = np.vectorize(
+        lambda dt: dt
+        + datetime.timedelta(days=dtStartLag_int)
+        + datetime.timedelta(hours=dtStartLag_float * 24)
+    )(dts_for_q_calc)
+
+    # return list(
+    #     map(
+    #         calc_q_kw,
+    #         dts_for_q_calc_with_lag,
+    #     )
+    # )
+
+    return np.vectorize(calc_q_kw)(dts_for_q_calc_with_lag)
 
 
-def calcRatios(dts, qs):
+def calc_ratios(dts, qs):
     """
     実測値と同じ日時の計算値を求めて、実測値と計算値の比を返す
     """
-    ratios = []
-    Qs_calc = list(
-        map(
-            lambda dt: max(calcQ(dt, 33.82794, 132.75093), 0) / 1000,
-            dts,
-        )
-    )
-    for q, q_calc in zip(
-        qs,
-        Qs_calc,
-    ):
+    # Qs_calc = list(
+    #     map(
+    #         calc_q_kw,
+    #         dts,
+    #     )
+    # )
+    Qs_calc = np.vectorize(calc_q_kw)(dts)
+
+    def calc_ratio(l):
+        q, q_calc = l
         ratio = None
         if q_calc < 0.001:  # 計算値が0の部分は比を1扱いにする
             ratio = 1
         else:
             ratio = q / q_calc
-        ratios.append(ratio)
+        return ratio
+
+    q_and_q_calc_ndarray = np.concatenate(
+        [qs.reshape([-1, 1]), Qs_calc.reshape([-1, 1])], 1
+    )
+
+    ratios = np.apply_along_axis(calc_ratio, 1, q_and_q_calc_ndarray)
+
+    # for q, q_calc in zip(
+    #     qs,
+    #     Qs_calc,
+    # ):
+    #     ratio = None
+    #     if q_calc < 0.001:  # 計算値が0の部分は比を1扱いにする
+    #         ratio = 1
+    #     else:
+    #         ratio = q / q_calc
+    #     ratios.append(ratio)
 
     return ratios

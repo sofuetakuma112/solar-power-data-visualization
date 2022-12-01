@@ -1,7 +1,7 @@
 import datetime
 from utils.es import fetch
 import sys
-from utils.q import calcQ
+from utils.q import calc_q_kw
 import numpy as np
 import japanize_matplotlib
 import math
@@ -75,7 +75,7 @@ def main():
         ):  # [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
             Qs_calc = list(
                 map(
-                    lambda dt: max(calcQ(dt, 33.82794, 132.75093), 0) * coef / 1000,
+                    lambda dt: calc_q_kw(dt) * coef,
                     # dts_applied_largest_lag_sec,
                     dts_for_calc,
                 )
@@ -122,7 +122,7 @@ def main():
         ratios = []
         Qs_calc = list(
             map(
-                lambda dt: max(calcQ(dt, 33.82794, 132.75093), 0) / 1000,
+                calc_q_kw,
                 dts_applied_largest_lag_sec,
             )
         )

@@ -9,14 +9,14 @@ from utils.correlogram import (
     testEqualityDeltaBetweenDts,
     unifyDeltasBetweenDts,
     calc_dts_for_q_calc,
-    slidesQCalcForCorr,
-    calcRatios,
+    slides_q_calc_for_corr,
+    calc_ratios,
 )
 from utils.es.load import NotEnoughDocErr, loadQAndDtForPeriod
 import csv
 import argparse
 import itertools
-from utils.q import calcQ
+from utils.q import calc_q_kw
 import matplotlib.pyplot as plt
 
 MODE_DYNAMIC = "dynamic"
@@ -110,12 +110,11 @@ def calc_corr(
             def _calc_daily_diff(dt_and_q_list_per_day):
                 def calc_diff(l):
                     dt, q, _ = l
-                    q_calc = max(calcQ(dt, 33.82794, 132.75093), 0) / 1000
+                    q_calc = calc_q_kw(dt)
                     return np.square(q_calc - q)  # ユークリッド距離
 
-                diff_square_sum_sqrt = np.sqrt(
-                    np.sum(np.apply_along_axis(calc_diff, 1, dt_and_q_list_per_day))
-                )
+                diff_per_day = np.apply_along_axis(calc_diff, 1, dt_and_q_list_per_day)
+                diff_square_sum_sqrt = np.sqrt(np.sum(diff_per_day) / len(diff_per_day))
 
                 return diff_square_sum_sqrt
 
@@ -166,53 +165,43 @@ def calc_corr(
         Q_all = filtered_dt_and_q_list[:, 1]
 
     # 【デバッグ】
-    axes = [plt.subplots()[1] for i in range(1)]
-    axes[0].plot(dt_all, Q_all, label="実測値")  # 実データをプロット
-    axes[0].set_xlabel("日時")
-    axes[0].set_ylabel("日射量[kW/m^2]")
-    axes[0].set_xlim(fromDt, toDt)
-    plt.show()
-
-    dt_all = list(dt_all)
-    Q_all = list(Q_all)
+    # axes = [plt.subplots()[1] for i in range(1)]
+    # axes[0].plot(dt_all, Q_all, label="実測値")  # 実データをプロット
+    # axes[0].set_xlabel("日時")
+    # axes[0].set_ylabel("日射量[kW/m^2]")
+    # axes[0].set_xlim(fromDt, toDt)
+    # plt.show()
 
     # (実測値 / 理論値)を各日時ごとに計算して、ソートして上から何割かだけの日射量を採用して残りは0にする
-    ratios = calcRatios(dt_all, Q_all)
-    diffs_between_ratio_and_one = [  # 比が1からどれだけ離れているか
-        (i, np.abs(1 - ratio)) for i, ratio in enumerate(ratios)
-    ]
-    total_len = len(diffs_between_ratio_and_one)
+    ratios = calc_ratios(dt_all, Q_all)
+    diffs_between_ratio_and_one_ndarray = np.abs(1 - ratios)
+    total_len = len(diffs_between_ratio_and_one_ndarray)
     last_idx = int(
         total_len * np.abs(1 - percentageOfData)
     )  # 全体のうち何%のデータをそのまま変化加えないとするか(小数表記)
-    should_replace_zero_idxes = list(
-        map(
-            lambda idx_and_diff_ratio: idx_and_diff_ratio[0],
-            sorted(diffs_between_ratio_and_one, key=lambda x: x[1], reverse=True)[
-                :last_idx
-            ],
-        )
-    )
-    should_replace_zero_idxes = sorted(
-        should_replace_zero_idxes
-    )  # インデックスの大小関係がUNIX時間の大小関係と等しい
+    should_replace_zero_idxes_ndarray = np.argsort(
+        -diffs_between_ratio_and_one_ndarray
+    )[:last_idx]
 
-    for i in should_replace_zero_idxes:
-        if q_modification_strategy == MODE_REPLACE_ZERO:
-            Q_all[i] = 0
-        elif q_modification_strategy == MODE_AVG:
-            if i - 1 >= 0 and i < len(diffs_between_ratio_and_one) - 1:
-                # iの左右に最低1つはデータ点がある
-                Q_all[i] = (Q_all[i - 1] + Q_all[i + 1]) / 2
-            else:
-                # 左右の端
-                Q_all[i] = 0
-        else:
-            raise ValueError("不正なq_modification_strategy")
+    should_replace_zero_idxes_ndarray = np.sort(should_replace_zero_idxes_ndarray)
+
+    # TODO: numpy対応する
+    # for i in should_replace_zero_idxes_ndarray:
+    #     if q_modification_strategy == MODE_REPLACE_ZERO:
+    #         Q_all[i] = 0
+    #     elif q_modification_strategy == MODE_AVG:
+    #         if i - 1 >= 0 and i < len(should_replace_zero_idxes_ndarray) - 1:
+    #             # iの左右に最低1つはデータ点がある
+    #             Q_all[i] = (Q_all[i - 1] + Q_all[i + 1]) / 2
+    #         else:
+    #             # 左右の端
+    #             Q_all[i] = 0
+    #     else:
+    #         raise ValueError("不正なq_modification_strategy")
 
     dts_for_q_calc_or_err = calc_dts_for_q_calc(dt_all, dynamicSpanLen)
 
-    dts_for_q_calc = []
+    dts_for_q_calc = np.array([])
     if isinstance(dts_for_q_calc_or_err, NotEnoughLengthErr):
         return dts_for_q_calc_or_err, None
     else:
@@ -221,7 +210,7 @@ def calc_corr(
     # Q_calc_allの時系列データを実測値の時系列データより進める
     # fixedSpanLen: 2.5, dynamicSpanLen: 2.0で差が0.5日の場合、計算用の日時列は6時間進んだ状態に変化する
     # 計算値の日時をスライドさせる全量の半分だけ進めた状態で相互相関を求めることで、全量の半分スライドさせたときに相互相関が最大となる
-    Q_calc_all_applied_lag = slidesQCalcForCorr(
+    Q_calc_all_applied_lag = slides_q_calc_for_corr(
         dts_for_q_calc, fixedSpanLen, dynamicSpanLen
     )
 
@@ -230,8 +219,12 @@ def calc_corr(
     # 【デバッグ】
     # corr = np.correlate(Q_all, Q_all_cached[start_idx:-start_idx])
 
-    corr = np.correlate(Q_all, Q_calc_all_applied_lag)
+    corr = np.correlate(list(Q_all), list(Q_calc_all_applied_lag))
     largest_lag_sec = 6 * 60 * 60 - corr.argmax()
+
+    # estimated_delay = corr.argmax() - (len(Q_all) - 1)
+    # print("estimated delay is " + str(estimated_delay))
+    # largest_lag_sec = estimated_delay
 
     # 時系列データの1単位あたりの相互相関の値を返す
     return corr.max() / len(Q_calc_all_applied_lag), largest_lag_sec
