@@ -19,6 +19,8 @@ import itertools
 from utils.q import calc_q_kw
 import matplotlib.pyplot as plt
 
+import time
+
 MODE_DYNAMIC = "dynamic"
 MODE_FIXED = "fixed"
 
@@ -89,6 +91,7 @@ def calc_corr(
 
     # TODO: top_nを使って上位n日のみを残すフィルタリング処理を実装する
     # 日毎に計算値と実測値の差分の総和を求める
+    time_sta = time.time()
     if top_n != INIT_TOP_N:
         dt_and_q_list = np.array(
             list(
@@ -103,34 +106,68 @@ def calc_corr(
         ymds = dt_and_q_list[:, 2]
         unique_ymds = np.unique(ymds)
 
+        # マスクを生成する関数を返す
         def set_unique_ymd(unique_ymd):
             return np.vectorize(lambda ymd: ymd == unique_ymd)
 
-        def calc_daily_diff(get_mask_func):
+        def calc_daily_diff(create_mask_func):
             def _calc_daily_diff(dt_and_q_list_per_day):
-                def calc_diff(l):
-                    dt, q, _ = l
-                    q_calc = calc_q_kw(dt)
-                    return np.square(q_calc - q)  # ユークリッド距離
+                SHOULD_MATCH_MAX_VALUE = True
 
-                diff_per_day = np.apply_along_axis(calc_diff, 1, dt_and_q_list_per_day)
+                if SHOULD_MATCH_MAX_VALUE:
+
+                    def _calc_q_kw(l):
+                        dt, _, _ = l
+                        q_calc = calc_q_kw(dt)
+                        return q_calc  # ユークリッド距離
+
+                    q_calc_ndarray = np.apply_along_axis(
+                        _calc_q_kw, 1, dt_and_q_list_per_day
+                    )
+
+                    q_calc_max = np.max(q_calc_ndarray)
+
+                    q_ndarray = dt_and_q_list_per_day[:, 1]
+                    q_max = np.max(q_ndarray)
+
+                    if q_max == 0.0:
+                        scaled_q_calc_ndarray = q_calc_ndarray
+                    else:
+                        scaled_q_calc_ndarray = q_calc_ndarray * (q_max / q_calc_max)
+
+                    diff_with_scaled_q_calc_per_day = np.square(
+                        scaled_q_calc_ndarray - q_ndarray
+                    )
+                    diff_per_day = diff_with_scaled_q_calc_per_day
+                else:
+
+                    def calc_diff(l):
+                        dt, q, _ = l
+                        q_calc = calc_q_kw(dt)
+                        return np.square(q_calc - q)  # ユークリッド距離
+
+                    diff_per_day = np.apply_along_axis(
+                        calc_diff, 1, dt_and_q_list_per_day
+                    )
+
                 diff_square_sum_sqrt = np.sqrt(np.sum(diff_per_day) / len(diff_per_day))
 
                 return diff_square_sum_sqrt
 
-            masked = dt_and_q_list[get_mask_func(ymds)]
+            masked = dt_and_q_list[create_mask_func(ymds)]
             return _calc_daily_diff(masked)
 
-        def get_ymd(get_mask_func):
-            masked = dt_and_q_list[get_mask_func(ymds)]
+        def get_ymd(create_mask_func):
+            masked = dt_and_q_list[create_mask_func(ymds)]
             return masked[0][-1]
 
-        mask_funcs = np.vectorize(set_unique_ymd)(unique_ymds)
+        # マスクを生成する関数のndarray
+        create_mask_funcs = np.vectorize(set_unique_ymd)(unique_ymds)
 
         # FIXME: マスクの作成が2重で走ってるからリファクタする
-        dates = np.vectorize(get_ymd)(mask_funcs)
+        dates = np.vectorize(get_ymd)(create_mask_funcs)
         diffs = np.vectorize(calc_daily_diff)(
-            mask_funcs
+            create_mask_funcs
         )  # (単位時間あたりの計算値と実測値の差, YYYY/MM/DD)
 
         diff_euclid_distances = np.concatenate(
@@ -141,9 +178,10 @@ def calc_corr(
 
         sorted_row_indexes = diff_euclid_distances[:, 0].astype(np.float32).argsort()
 
-        sorted_dates = np.apply_along_axis(
-            lambda row: row[1], 1, diff_euclid_distances[sorted_row_indexes, :]
-        )
+        # sorted_dates = np.apply_along_axis(
+        #     lambda row: row[1], 1, diff_euclid_distances[sorted_row_indexes, :]
+        # )
+        sorted_dates = diff_euclid_distances[sorted_row_indexes, 1]
 
         top_n_dts = sorted_dates[:top_n]
 
@@ -163,6 +201,8 @@ def calc_corr(
 
         dt_all = filtered_dt_and_q_list[:, 0]
         Q_all = filtered_dt_and_q_list[:, 1]
+    time_end = time.time()
+    print(f"概形の良い山を見つけるのにかかった時間: {time_end- time_sta}")
 
     # 【デバッグ】
     # axes = [plt.subplots()[1] for i in range(1)]
