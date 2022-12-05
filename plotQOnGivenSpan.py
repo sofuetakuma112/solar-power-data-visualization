@@ -3,40 +3,65 @@ import sys
 import matplotlib.pyplot as plt
 import japanize_matplotlib
 from utils.es.load import loadQAndDtForAGivenPeriod
+import os
+import argparse
+import numpy as np
+from utils.q import calc_q_kw
 
-# > python3 plotQOnGivenSpan.py 2022/04/01 00:00:00 2022/05/01 00:00:00
+# > python3 plotQOnGivenSpan.py -fd 2022/04/01 -ft 00:00:00 -td 2022/05/01 -tt 00:00:00
 if __name__ == "__main__":
-    args = sys.argv
+    # args = sys.argv
+    # from_date = args[1].split("/")
+    # from_time = args[2].split(":")
+    # to_date = args[3].split("/")
+    # to_time = args[4].split(":")
 
-    fromDtTillDay_str = args[1].split("/")
-    fromDtTillSec_str = args[2].split(":")
-    toDtDtTillDay_str = args[3].split("/")
-    toDtTillSec_str = args[4].split(":")
+    parser = argparse.ArgumentParser(description="add two integer")
+    parser.add_argument("-fd", type=str)  # from の日付
+    parser.add_argument("-ft", type=str)  # fromの時間
+    parser.add_argument("-td", type=str)  # toの日付
+    parser.add_argument("-tt", type=str)  # toの時間
+    parser.add_argument(
+        "-tv", "--theoretical_value", action="store_true"
+    )  # 理論値も合わせて表示するか
 
-    fromDt = datetime.datetime(
-        int(fromDtTillDay_str[0]),
-        int(fromDtTillDay_str[1]),
-        int(fromDtTillDay_str[2]),
-        int(fromDtTillSec_str[0]),
-        int(fromDtTillSec_str[1]),
-        int(fromDtTillSec_str[2]),
+    args = parser.parse_args()
+
+    from_date = args.fd.split("/")
+    from_time = args.ft.split(":")
+    to_date = args.td.split("/")
+    to_time = args.tt.split(":")
+
+    from_dt = datetime.datetime(
+        int(from_date[0]),
+        int(from_date[1]),
+        int(from_date[2]),
+        int(from_time[0]),
+        int(from_time[1]),
+        int(from_time[2]),
     )
 
-    toDt = datetime.datetime(
-        int(toDtDtTillDay_str[0]),
-        int(toDtDtTillDay_str[1]),
-        int(toDtDtTillDay_str[2]),
-        int(toDtTillSec_str[0]),
-        int(toDtTillSec_str[1]),
-        int(toDtTillSec_str[2]),
+    to_dt = datetime.datetime(
+        int(to_date[0]),
+        int(to_date[1]),
+        int(to_date[2]),
+        int(to_time[0]),
+        int(to_time[1]),
+        int(to_time[2]),
     )
 
-    dt_all, Q_all = loadQAndDtForAGivenPeriod(fromDt, toDt, True)
+    dt_all, Q_all = loadQAndDtForAGivenPeriod(from_dt, to_dt, True)
+
+    dt_all = np.array(dt_all)
+    Q_all = np.array(Q_all)
 
     axes = [plt.subplots()[1] for i in range(1)]
 
     axes[0].plot(dt_all, Q_all, label="実測値")  # 実データをプロット
     axes[0].set_xlabel("日時")
     axes[0].set_ylabel("日射量[kW/m^2]")
-    axes[0].set_xlim(fromDt, toDt)
+    axes[0].set_title(f"{from_dt} ~ {to_dt}")
+    axes[0].set_xlim(from_dt, to_dt)
+    if args.theoretical_value:
+        axes[0].plot(dt_all, np.vectorize(calc_q_kw)(dt_all), label="理論値")
     plt.show()
