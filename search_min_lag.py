@@ -8,7 +8,7 @@ import math
 from correlogram import unifyDeltasBetweenDts
 import matplotlib.pyplot as plt
 from utils.correlogram import calcLag, shiftDts
-from utils.es.load import loadQAndDtForPeriod
+from utils.es.load import load_q_and_dt_for_period
 
 def main():
     args = sys.argv
@@ -25,7 +25,7 @@ def main():
     fetch.fetchDocsByPeriod(fromDt, toDt)  # pickleファイルがない場合、取得する
 
     # 与えた期間の日射量と計測日時をファイルから読み込む(dtでソート済み)
-    dt_all, Q_all = loadQAndDtForPeriod(fromDt, fixedDaysLen)
+    dt_all, Q_all = load_q_and_dt_for_period(fromDt, fixedDaysLen)
     # 時系列データのデルタを均一にする
     dt_all, Q_all = unifyDeltasBetweenDts(dt_all, Q_all)
 

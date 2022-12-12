@@ -15,7 +15,7 @@ from utils.correlogram import (
     unifyDeltasBetweenDts,
     calc_ratios,
 )
-from utils.es.load import loadQAndDtForPeriod
+from utils.es.load import load_q_and_dt_for_period
 from utils.es.fetch import fetchDocsByPeriod
 from utils.q import calc_q_kw
 
@@ -31,7 +31,7 @@ if __name__ == "__main__":
     toDt = fromDt + datetime.timedelta(days=math.ceil(fixedDaysLen))
 
     fetchDocsByPeriod(fromDt, toDt)  # pickleファイルがない場合、取得する
-    dt_all, Q_all = loadQAndDtForPeriod(
+    dt_all, Q_all = load_q_and_dt_for_period(
         fromDt, fixedDaysLen
     )  # 与えた期間の日射量と計測日時をファイルから読み込む(dtでソート済み)
     dt_all, Q_all = unifyDeltasBetweenDts(dt_all, Q_all)  # 時系列データのデルタを均一にする

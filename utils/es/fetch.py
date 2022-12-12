@@ -7,7 +7,7 @@ from elasticsearch import Elasticsearch
 import pickle
 import datetime
 
-from utils.file import getPickleFilePathByDatetime
+from utils.file import get_pickle_file_path_by_datetime
 
 from dotenv import load_dotenv
 
@@ -29,7 +29,7 @@ def fetchDocsByDatetime(dt):
     if not os.path.exists(f"{os.getcwd()}/pickles/{data_type}"):
         os.mkdir(f"{os.getcwd()}/pickles/{data_type}")
 
-    filePath = getPickleFilePathByDatetime(dt, data_type)
+    filePath = get_pickle_file_path_by_datetime(dt, data_type)
     # すでにPickleファイルが存在するならElasticSearchから取得しない
     if os.path.isfile(filePath):
         return

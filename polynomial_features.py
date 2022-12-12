@@ -50,7 +50,7 @@ from utils.correlogram import (
     slides_q_calc_for_corr,
     calc_ratios,
 )
-from utils.es.load import NotEnoughDocErr, loadQAndDtForPeriod
+from utils.es.load import NotEnoughDocErr, load_q_and_dt_for_period
 import csv
 import argparse
 
@@ -87,7 +87,7 @@ if __name__ == "__main__":
 
         fetchDocsByPeriod(fromDt, toDt)  # pickleファイルがない場合、取得する
 
-        dt_all_or_err, Q_all = loadQAndDtForPeriod(
+        dt_all_or_err, Q_all = load_q_and_dt_for_period(
             fromDt, fixedDaysLen
         )  # 与えた期間の日射量と計測日時をファイルから読み込む(dtでソート済み)
         dt_all = None

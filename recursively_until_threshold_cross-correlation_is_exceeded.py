@@ -12,7 +12,7 @@ from utils.correlogram import (
     slides_q_calc_for_corr,
     calc_ratios,
 )
-from utils.es.load import NotEnoughDocErr, loadQAndDtForPeriod
+from utils.es.load import NotEnoughDocErr, load_q_and_dt_for_period
 import csv
 import argparse
 import itertools
@@ -71,7 +71,7 @@ def calc_corr(
     > python3 recursively_until_threshold_cross-correlation_is_exceeded.py 2022/04/01 2.5 2 0.27
     """
     fetchDocsByPeriod(fromDt, toDt)  # pickleファイルがない場合、取得する
-    dt_all_or_err, Q_all = loadQAndDtForPeriod(  # 計算値をスライドさせるため、固定側は動的側より長いリスト長が必要となる
+    dt_all_or_err, Q_all = load_q_and_dt_for_period(  # 計算値をスライドさせるため、固定側は動的側より長いリスト長が必要となる
         fromDt, fixedSpanLen, no_missing_data_err
     )  # 与えた期間の日射量と計測日時をファイルから読み込む(dtでソート済み)
 

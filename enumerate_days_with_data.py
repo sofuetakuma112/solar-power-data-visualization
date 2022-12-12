@@ -1,7 +1,7 @@
 import pickle
 import datetime
 from utils.es.fetch import fetchDocsByPeriod
-from utils.file import getPickleFilePathByDatetime
+from utils.file import get_pickle_file_path_by_datetime
 
 
 if __name__ == "__main__":
@@ -14,7 +14,7 @@ if __name__ == "__main__":
     dt_crr = fromDt
     no_docs_dts = []
     for _ in range(dtDiff.days + 1):
-        filePath = getPickleFilePathByDatetime(dt_crr)
+        filePath = get_pickle_file_path_by_datetime(dt_crr)
 
         with open(filePath, "rb") as f:
             docs = pickle.load(f)

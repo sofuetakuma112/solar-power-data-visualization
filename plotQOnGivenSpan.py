@@ -2,11 +2,19 @@ import datetime
 import sys
 import matplotlib.pyplot as plt
 import japanize_matplotlib
-from utils.es.load import loadQAndDtForAGivenPeriod
+from utils.es.load import load_q_and_dt_for_period
 import os
 import argparse
 import numpy as np
 from utils.q import calc_q_kw
+from utils.correlogram import (
+    unifyDeltasBetweenDts,
+)
+
+
+def dt_to_hours(dt):
+    return dt.days * 24 + (dt.seconds + dt.microseconds / 1000000) / 60 / 60
+
 
 # > python3 plotQOnGivenSpan.py -fd 2022/04/01 -ft 00:00:00 -td 2022/05/01 -tt 00:00:00
 if __name__ == "__main__":
@@ -50,10 +58,18 @@ if __name__ == "__main__":
         int(to_time[2]),
     )
 
-    dt_all, Q_all = loadQAndDtForAGivenPeriod(from_dt, to_dt, True)
+    diff = to_dt - from_dt
+    diff_days = dt_to_hours(diff) / 24
+
+    dt_all, Q_all = load_q_and_dt_for_period(from_dt, diff_days, True)
+
+    dt_all, Q_all = unifyDeltasBetweenDts(dt_all, Q_all)
 
     dt_all = np.array(dt_all)
     Q_all = np.array(Q_all)
+
+    print(f"len(dt_all): {len(dt_all)}")
+    print(f"len(Q_all): {len(Q_all)}")
 
     axes = [plt.subplots()[1] for i in range(1)]
 

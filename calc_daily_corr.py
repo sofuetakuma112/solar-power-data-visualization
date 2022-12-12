@@ -7,6 +7,9 @@ import os
 import json
 import numpy as np
 from utils.q import calc_q_kw
+from utils.correlogram import (
+    unifyDeltasBetweenDts,
+)
 
 if __name__ == "__main__":
     json_open = open("data/json/sorted_diffs.json", "r")
@@ -18,10 +21,14 @@ if __name__ == "__main__":
 
         dt_all, Q_all = loadQAndDtForAGivenPeriod(fromDt, toDt, True)
 
+        # 時系列データのデルタを均一にする
+        dt_all, Q_all = unifyDeltasBetweenDts(dt_all, Q_all)
+
         dt_all = np.array(dt_all)
         Q_all = np.array(Q_all)
+        q_calc_all = np.vectorize(calc_q_kw)(dt_all)
 
-        corr = np.correlate(Q_all, np.vectorize(calc_q_kw)(dt_all), "full")
-        estimated_delay = corr.argmax() - (len(Q_all) - 1)
+        corr = np.correlate(Q_all, q_calc_all, "full")
+        estimated_delay = corr.argmax() - (len(q_calc_all) - 1)
 
         print(f"{fromDt}: {estimated_delay}")

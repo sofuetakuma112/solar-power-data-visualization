@@ -13,7 +13,7 @@ from utils.correlogram import (
     calc_dts_for_q_calc,
     slides_q_calc_for_corr,
 )
-from utils.es.load import loadQAndDtForPeriod
+from utils.es.load import load_q_and_dt_for_period
 import argparse
 import math
 
@@ -41,7 +41,7 @@ def main():
     fetch.fetchDocsByPeriod(fromDt, toDt)  # pickleファイルがない場合、取得する
 
     # 与えた期間の日射量と計測日時をファイルから読み込む(dtでソート済み)
-    dt_all, Q_all = loadQAndDtForPeriod(fromDt, fixedDaysLen)
+    dt_all, Q_all = load_q_and_dt_for_period(fromDt, fixedDaysLen)
     dt_all_copy = copy.deepcopy(dt_all)  # 補完が正しく行えているか確認する用
     Q_all_copy = copy.deepcopy(Q_all)  # 補完が正しく行えているか確認する用
 
