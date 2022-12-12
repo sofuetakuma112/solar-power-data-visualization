@@ -21,15 +21,9 @@ def time_to_seconds(t):
     return (t.hour * 60 + t.minute) * 60 + t.second
 
 
-# > python3 plotQOnGivenSpan.py -fd 2022/04/01 -ft 00:00:00 -td 2022/05/01 -tt 00:00:00
+# > python3 plot_multiple_q.py -dts 2022/09/30 2022/04/08 2022/11/20 2022/05/03 2022/05/18 2022/10/30
 if __name__ == "__main__":
-    # args = sys.argv
-    # from_date = args[1].split("/")
-    # from_time = args[2].split(":")
-    # to_date = args[3].split("/")
-    # to_time = args[4].split(":")
-
-    parser = argparse.ArgumentParser(description="add two integer")
+    parser = argparse.ArgumentParser()
     parser.add_argument("-dts", type=str, nargs="*")  # グラフ描画したい日付のリスト
     parser.add_argument(
         "-tv", "--theoretical_value", action="store_true"
@@ -55,22 +49,6 @@ if __name__ == "__main__":
 
         dt_all = np.array(dt_all)
         Q_all = np.array(Q_all)
-
-        # np.vectorize(lambda dt: print(dt_all[0].strftime("%Y-%m-%d %H:%M:%S.%f")))(dt_all)
-        # print(dt_all[0].strftime("%Y-%m-%d %H:%M:%S.%f"))
-        # print(dt_all[-1].strftime("%Y-%m-%d %H:%M:%S.%f"))
-
-        # hour = dt_all[0].hour
-        # minute = dt_all[0].minute
-        # second = dt_all[0].second
-        # microsecond = dt_all[0].microsecond
-
-        # TODO: 時:分:秒だけのデータをx軸に渡す
-        # times = np.vectorize(
-        #     lambda dt: time_to_seconds(
-        #         datetime.time(dt.hour, dt.minute, dt.second, dt.microsecond)
-        #     )
-        # )(dt_all)
 
         unified_dates = np.vectorize(
             lambda dt: datetime.datetime(
