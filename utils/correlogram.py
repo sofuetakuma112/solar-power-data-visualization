@@ -1,5 +1,5 @@
 import datetime
-from utils.date import getRelativePositionBetweenTwoDts
+from utils.date import get_relative_position_between_two_dts
 from utils.q import calc_q_kw
 import numpy as np
 import math
@@ -68,7 +68,7 @@ def testEqualityDeltaBetweenDts(dts, delta=1.0):
             raise ValueError("error!")
 
 
-def getDtListAndCoefBeCompleted(dts, qs):
+def get_dt_list_and_coef_be_complete(dts, qs):
     """
     補完した日時データと日射量の増分に対する係数のリストを取得する
     """
@@ -83,11 +83,9 @@ def getDtListAndCoefBeCompleted(dts, qs):
         q_delta = q_next - q_crr
 
         # 補完する時刻と⊿yの係数のリストを取得する
-        dt_and_increment_coef_list = getRelativePositionBetweenTwoDts(dt_crr, dt_next)
+        dt_and_increment_coef_list = get_relative_position_between_two_dts(dt_crr, dt_next)
         for dt_and_coef in dt_and_increment_coef_list:
-            dt_comp = dt_and_coef[0]
-
-            increment_coef = dt_and_coef[1]
+            dt_comp, increment_coef = dt_and_coef
             q_comp = q_crr + q_delta * increment_coef
 
             comps.append([dt_comp, q_comp])
@@ -99,7 +97,7 @@ def unifyDeltasBetweenDts(dts, qs):
     補完した日時データとそれに対応した日射量のリストを取得する
     """
     # 補完データを取得する
-    comps = getDtListAndCoefBeCompleted(dts, qs)
+    comps = get_dt_list_and_coef_be_complete(dts, qs)
     # 補完データと既存のデータをマージする
     dt_and_q_list = []
     for i in range(len(qs)):

@@ -2,3 +2,5 @@ pickles/
 **/__pycache__/
 
 **/.env
+
+images/

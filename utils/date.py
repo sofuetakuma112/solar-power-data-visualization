@@ -25,13 +25,13 @@ def getSecond(dt):
     return dt.second
 
 
-def getDtNosecond(dt):
+def get_dt_without_second(dt):
     return datetime.datetime(
         getYear(dt), getMonth(dt), getDay(dt), getHour(dt), getMinute(dt)
     )
 
 
-def getDtNoMilisecond(dt):
+def get_dt_without_milisecond(dt):
     return datetime.datetime(
         getYear(dt), getMonth(dt), getDay(dt), getHour(dt), getMinute(dt), getSecond(dt)
     )
@@ -43,8 +43,8 @@ def getSecondAndMiliSecond(dt):
 
 # 補完する点の数を返す
 def getPointsNumberBeCompleted(dt_past, dt_future):
-    dt_past_nosecond = getDtNosecond(dt_past)
-    dt_future_nosecond = getDtNosecond(dt_future)
+    dt_past_nosecond = get_dt_without_second(dt_past)
+    dt_future_nosecond = get_dt_without_second(dt_future)
     diff = dt_future_nosecond - dt_past_nosecond
     diff_seconds = diff.total_seconds()
 
@@ -59,15 +59,12 @@ def getPointsNumberBeCompleted(dt_past, dt_future):
 # 秒の足し合わせはtimedeltaに任せて、割合の計算をメインで行う
 # dt_pastが12s, dt_futureが14.2の場合は13, 14秒を補完する
 # dt_pastが11.3s, dt_futureが12の場合は12秒を補完する
-def getRelativePositionBetweenTwoDts(dt_past, dt_future):
+def get_relative_position_between_two_dts(dt_past, dt_future):
     second_with_mili_past = getSecondAndMiliSecond(dt_past)
     second_with_mili_future = getSecondAndMiliSecond(dt_future)
-    # print(
-    #     f"second_with_mili_past, second_with_mili_future: {second_with_mili_past}, {second_with_mili_future}"
-    # )
 
-    dt_past_nosecond = getDtNosecond(dt_past)
-    dt_future_nosecond = getDtNosecond(dt_future)
+    dt_past_nosecond = get_dt_without_second(dt_past)
+    dt_future_nosecond = get_dt_without_second(dt_future)
     diff = dt_future_nosecond - dt_past_nosecond
     diff_seconds = diff.total_seconds()
 
@@ -78,7 +75,7 @@ def getRelativePositionBetweenTwoDts(dt_past, dt_future):
         second_with_mili_future + diff_seconds - second_with_mili_past
     )
 
-    dt_past_nomilisecond = getDtNoMilisecond(dt_past)
+    dt_past_nomilisecond = get_dt_without_milisecond(dt_past)
     dt_and_rates = []
     for i in range(pointsNum):
         add_second = i + 1
@@ -126,11 +123,11 @@ if __name__ == "__main__":
 
     print("\n", end="")
 
-    # getRelativePositionBetweenTwoDts(dt1, dt2)
-    # getRelativePositionBetweenTwoDts(dt3, dt4)
-    # getRelativePositionBetweenTwoDts(dt5, dt6)
-    # getRelativePositionBetweenTwoDts(dt7, dt8)
-    # getRelativePositionBetweenTwoDts(dt9, dt10)
-    getRelativePositionBetweenTwoDts(dt11, dt12)
+    # get_relative_position_between_two_dts(dt1, dt2)
+    # get_relative_position_between_two_dts(dt3, dt4)
+    # get_relative_position_between_two_dts(dt5, dt6)
+    # get_relative_position_between_two_dts(dt7, dt8)
+    # get_relative_position_between_two_dts(dt9, dt10)
+    get_relative_position_between_two_dts(dt11, dt12)
 
-    # print(getRelativePositionBetweenTwoDts(dt9, dt10))
+    # print(get_relative_position_between_two_dts(dt9, dt10))
