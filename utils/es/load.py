@@ -19,13 +19,13 @@ import matplotlib.pyplot as plt
 import japanize_matplotlib
 
 
-def doc_to_dt(doc):
-    return isoformat2dt(extractFieldsFromDoc(doc, "JPtime"))
-
-
 class NotEnoughDocErr:
     def __init__(self):
         self.message = "Elasticsearchにデータが無い"
+
+
+def doc_to_dt(doc):
+    return isoformat2dt(extractFieldsFromDoc(doc, "JPtime"))
 
 
 def create_doc_dict(dt, q):
@@ -43,52 +43,52 @@ def time_to_seconds(t):
     ).total_seconds()
 
 
-def complement_docs(docs, dt_crr_fetching):
-    # docsをループで回して年/月/日/時/分/秒レベルでデータが無いものを0扱いで補完する
-    def _complement_docs(dt_crr_complementing, end_dt, docs):
-        while dt_crr_complementing < end_dt:
-            docs.append(create_doc_dict(dt_crr_complementing, 0))
-            dt_crr_complementing += datetime.timedelta(seconds=1)
+# def complement_docs(docs, dt_crr_fetching):
+# # docsをループで回して年/月/日/時/分/秒レベルでデータが無いものを0扱いで補完する
+# def _complement_docs(dt_crr_complementing, end_dt, docs):
+#     while dt_crr_complementing < end_dt:
+#         docs.append(create_doc_dict(dt_crr_complementing, 0))
+#         dt_crr_complementing += datetime.timedelta(seconds=1)
 
-        return docs
+#     return docs
 
-    if len(docs) == 0:
-        # 全くデータが無い
-        end_dt = dt_crr_fetching + datetime.timedelta(days=1)
-        dt_crr_complementing = dt_crr_fetching
-        docs = _complement_docs(dt_crr_complementing, end_dt, docs)
-    else:
-        # 途中で計測できなくなっている
-        today = datetime.datetime(
-            dt_crr_fetching.year,
-            dt_crr_fetching.month,
-            dt_crr_fetching.day,
-            0,
-            0,
-            0,
-            0,
-        )
-        end_dt = today + datetime.timedelta(days=1)
-        dt_crr_complementing = datetime.datetime(
-            dt_crr_fetching.year,
-            dt_crr_fetching.month,
-            dt_crr_fetching.day,
-            dt_crr_fetching.hour,
-            dt_crr_fetching.minute,
-            dt_crr_fetching.second,
-            0,
-        ) + datetime.timedelta(seconds=1)
-        print(f"dt_crr_complementing: {dt_crr_complementing}")
-        print(f"end_dt: {end_dt}")
-        diff = end_dt - dt_crr_complementing
-        print(
-            f"dt_crr_complementing: {dt_crr_complementing.strftime('%Y/%m/%d %H:%M:%S')}"
-        )
-        print(f"len(docs): {len(docs)}")
-        print(f"diff [s]: {diff.seconds}")
-        docs = _complement_docs(dt_crr_complementing, end_dt, docs)
+# if len(docs) == 0:
+#     # 全くデータが無い
+#     end_dt = dt_crr_fetching + datetime.timedelta(days=1)
+#     dt_crr_complementing = dt_crr_fetching
+#     docs = _complement_docs(dt_crr_complementing, end_dt, docs)
+# else:
+#     # 途中で計測できなくなっている
+#     today = datetime.datetime(
+#         dt_crr_fetching.year,
+#         dt_crr_fetching.month,
+#         dt_crr_fetching.day,
+#         0,
+#         0,
+#         0,
+#         0,
+#     )
+#     end_dt = today + datetime.timedelta(days=1)
+#     dt_crr_complementing = datetime.datetime(
+#         dt_crr_fetching.year,
+#         dt_crr_fetching.month,
+#         dt_crr_fetching.day,
+#         dt_crr_fetching.hour,
+#         dt_crr_fetching.minute,
+#         dt_crr_fetching.second,
+#         0,
+#     ) + datetime.timedelta(seconds=1)
+#     print(f"dt_crr_complementing: {dt_crr_complementing}")
+#     print(f"end_dt: {end_dt}")
+#     diff = end_dt - dt_crr_complementing
+#     print(
+#         f"dt_crr_complementing: {dt_crr_complementing.strftime('%Y/%m/%d %H:%M:%S')}"
+#     )
+#     print(f"len(docs): {len(docs)}")
+#     print(f"diff [s]: {diff.seconds}")
+#     docs = _complement_docs(dt_crr_complementing, end_dt, docs)
 
-    return docs
+# return docs
 
 
 # データの補完はunifyDeltasBetweenDtsに任せる
@@ -204,9 +204,11 @@ def load_q_and_dt_for_period(
                     lambda second_from_start: create_doc_dict(
                         date + datetime.timedelta(seconds=second_from_start), 0
                     )
-                )(np.arange(offset + 1, offset + diff_seconds_from_last_to_end + 1, 1)) # FIXME: +1しなくても良い方を探す
+                )(
+                    np.arange(offset + 1, offset + diff_seconds_from_last_to_end + 1, 1)
+                )  # FIXME: +1しなくても良い方を探す
 
-            if (len(docs_from_last_to_end) > 0):
+            if len(docs_from_last_to_end) > 0:
                 print(f"right 0: {doc_to_dt(docs_from_last_to_end[0])}")
                 print(f"right -1: {doc_to_dt(docs_from_last_to_end[-1])}")
 
@@ -219,34 +221,6 @@ def load_q_and_dt_for_period(
             print(f"offset: {offset}")
 
             print("\n")
-
-            # if first_dt > start_dt:
-            #     # docsの先頭に00:00:00を追加
-            #     docs = np.append(create_doc_dict(start_dt, 0), docs)
-            # if last_dt < end_dt:
-            #     # docsの末尾に23:59:59を追加
-            #     docs = np.append(docs, create_doc_dict(end_dt, 0))
-
-        # if len(docs) == 0:
-        #     docs = np.append(create_doc_dict(start_dt, 0), docs)
-        #     docs = np.append(docs, create_doc_dict(end_dt, 0))
-        # else:
-        #     first_dt = isoformat2dt(extractFieldsFromDoc(docs[0], "JPtime"))
-        #     last_dt = isoformat2dt(extractFieldsFromDoc(docs[-1], "JPtime"))
-
-        #     start_dt = datetime.datetime(
-        #         first_dt.year, first_dt.month, first_dt.day, 0, 0, 0
-        #     )
-        #     end_dt = datetime.datetime(
-        #         last_dt.year, last_dt.month, last_dt.day, 23, 59, 59
-        #     )
-
-        #     if first_dt > start_dt:
-        #         # docsの先頭に00:00:00を追加
-        #         docs = np.append(create_doc_dict(start_dt, 0), docs)
-        #     if last_dt < end_dt:
-        #         # docsの末尾に23:59:59を追加
-        #         docs = np.append(docs, create_doc_dict(end_dt, 0))
 
         # # エラーを握りつぶしてOKで、かつ既に補完済みのデータをダンプしたファイルが存在する場合は、それを読み込む
         # if no_missing_data_err and is_exist_complemented_file:
