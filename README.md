@@ -1,4 +1,13 @@
 # セットアップ
+## pythonライブラリ
+- numpy
+- pandas
+- matplotlib
+- japanize-matplotlib
+- pyqt5
+- python-dotenv
+- elasticsearch
+
 ## コンテナ立ち上げ
 `docker compose up`
 
