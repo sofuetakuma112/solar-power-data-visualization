@@ -21,6 +21,8 @@ def time_to_seconds(t):
     return (t.hour * 60 + t.minute) * 60 + t.second
 
 
+colorlist = ["r", "g", "b", "c", "m", "y", "k", "w"]
+
 # > python3 plot_multiple_q.py -dts 2022/09/30 2022/04/08 2022/11/20 2022/05/03 2022/05/18 2022/10/30
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -28,13 +30,19 @@ if __name__ == "__main__":
     parser.add_argument(
         "-tv", "--theoretical_value", action="store_true"
     )  # 理論値も合わせて表示するか
+    parser.add_argument(
+        "-sd", "--save_daily", action="store_true"
+    )  # 理論値も合わせて表示するか
 
     args = parser.parse_args()
     dts = np.array(args.dts)
 
-    axes = [plt.subplots()[1] for _ in range(1)]
+    ax = [plt.subplots()[1] for _ in range(1)][0]
 
-    def plot_daily(dt_str):
+    def plot_daily(dt_str, i):
+        if args.save_daily:
+            _ax = [plt.subplots()[1] for _ in range(1)][0]
+
         dt = dt_str.split("/")
 
         from_dt = datetime.datetime(
@@ -56,21 +64,57 @@ if __name__ == "__main__":
             )
         )(dt_all)
 
-        axes[0].plot(
+        # # 複数の日のグラフを共通のaxに描画
+        ax.plot(
             unified_dates,
             Q_all,
             label=dt_all[0].strftime("%Y-%m-%d"),
-        )  # 実データをプロット
+            color=colorlist[i],
+        )
         if args.theoretical_value:
-            axes[0].plot(unified_dates, np.vectorize(calc_q_kw)(dt_all), label="理論値")
+            ax.plot(
+                unified_dates,
+                np.vectorize(calc_q_kw)(dt_all),
+                label=f"理論値: {dt_all[0].strftime('%Y-%m-%d')}",
+                linestyle="dashed",
+                color=colorlist[i],
+            )
 
-    axes[0].set_xlabel("日時")
-    axes[0].set_ylabel("日射量[kW/m^2]")
+        if args.save_daily:
+            # 特定の日のグラフを_axに描画
+            _ax.plot(
+                unified_dates,
+                Q_all,
+                label=dt_all[0].strftime("%Y-%m-%d"),
+                color=colorlist[i],
+            )
+            if args.theoretical_value:
+                _ax.plot(
+                    unified_dates,
+                    np.vectorize(calc_q_kw)(dt_all),
+                    label=f"理論値: {dt_all[0].strftime('%Y-%m-%d')}",
+                    linestyle="dashed",
+                    color=colorlist[i],
+                )
+            _ax.set_xlabel("日時")
+            _ax.set_ylabel("日射量[kW/m^2]")
+            _ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M:%S"))
+            _ax.legend()
 
-    axes[0].xaxis.set_major_formatter(mdates.DateFormatter("%H:%M:%S"))
+            dir = "./images/daily_q_with_tv"
+            if not os.path.exists(dir):
+                os.makedirs(dir)
 
-    [plot_daily(dt_str) for dt_str in dts] # np.vectorizeで書くとバグる
+            date_str = from_dt.strftime("%Y-%m-%d")
+            plt.savefig(f"{dir}/{date_str}.png")
 
-    axes[0].legend()
+    ax.set_xlabel("日時")
+    ax.set_ylabel("日射量[kW/m^2]")
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M:%S"))
+
+    [plot_daily(dt_str, i) for i, dt_str in enumerate(dts)]  # np.vectorizeで書くとバグる
+
+    ax.legend()
 
     plt.show()
+    # plt.savefig("./graph.png")
