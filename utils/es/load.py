@@ -218,9 +218,7 @@ def load_q_and_dt_for_period(
             print(f"doc_to_dt(docs[0]): {doc_to_dt(docs[0])}")
             print(f"doc_to_dt(docs[-1]): {doc_to_dt(docs[-1])}")
             print(f"diff_seconds_from_last_to_end: {diff_seconds_from_last_to_end}")
-            print(f"offset: {offset}")
-
-            print("\n")
+            print(f"offset: {offset}", end="\n\n")
 
         # # エラーを握りつぶしてOKで、かつ既に補完済みのデータをダンプしたファイルが存在する場合は、それを読み込む
         # if no_missing_data_err and is_exist_complemented_file:
