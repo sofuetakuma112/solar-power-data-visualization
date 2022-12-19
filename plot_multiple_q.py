@@ -11,6 +11,7 @@ from utils.correlogram import (
     unifyDeltasBetweenDts,
 )
 import matplotlib.dates as mdates
+import time
 
 
 def dt_to_hours(dt):
@@ -19,6 +20,10 @@ def dt_to_hours(dt):
 
 def time_to_seconds(t):
     return (t.hour * 60 + t.minute) * 60 + t.second
+
+
+def datetime_to_miliseconds(dt):
+    return int(time.mktime(dt.timetuple()) * 1000) + int(dt.microsecond / 1000)
 
 
 colorlist = ["r", "g", "b", "c", "m", "y", "k", "w"]
@@ -30,25 +35,26 @@ if __name__ == "__main__":
     parser.add_argument(
         "-tv", "--theoretical_value", action="store_true"
     )  # 理論値も合わせて表示するか
-    parser.add_argument(
-        "-sd", "--save_daily", action="store_true"
-    )  # 理論値も合わせて表示するか
+    parser.add_argument("-sd", "--save_daily", action="store_true")  # 理論値も合わせて表示するか
 
     args = parser.parse_args()
     dts = np.array(args.dts)
 
-    ax = [plt.subplots()[1] for _ in range(1)][0]
+    sorted_indexes = np.vectorize(lambda dt: datetime.datetime.strptime(dt, "%Y/%m/%d"))(dts).argsort()
+    dts = dts[sorted_indexes]
+
+    axes = [plt.subplots()[1] for _ in range(2)]
 
     def plot_daily(dt_str, i):
         if args.save_daily:
             _ax = [plt.subplots()[1] for _ in range(1)][0]
 
-        dt = dt_str.split("/")
+        year, month, date = dt_str.split("/")
 
         from_dt = datetime.datetime(
-            int(dt[0]),
-            int(dt[1]),
-            int(dt[2]),
+            int(year),
+            int(month),
+            int(date),
         )
 
         diff_days = 1.0
@@ -64,21 +70,30 @@ if __name__ == "__main__":
             )
         )(dt_all)
 
-        # # 複数の日のグラフを共通のaxに描画
-        ax.plot(
+        # 日毎に理論値と実測値の差を計算する
+        diffs = np.vectorize(calc_q_kw)(dt_all) - Q_all
+
+        axes[0].plot(
             unified_dates,
             Q_all,
             label=dt_all[0].strftime("%Y-%m-%d"),
             color=colorlist[i],
         )
         if args.theoretical_value:
-            ax.plot(
+            axes[0].plot(
                 unified_dates,
                 np.vectorize(calc_q_kw)(dt_all),
                 label=f"理論値: {dt_all[0].strftime('%Y-%m-%d')}",
                 linestyle="dashed",
                 color=colorlist[i],
             )
+
+        axes[1].plot(
+            unified_dates,
+            diffs,
+            label=dt_all[0].strftime("%Y-%m-%d"),
+            color=colorlist[i],
+        )
 
         if args.save_daily:
             # 特定の日のグラフを_axに描画
@@ -108,13 +123,17 @@ if __name__ == "__main__":
             date_str = from_dt.strftime("%Y-%m-%d")
             plt.savefig(f"{dir}/{date_str}.png")
 
-    ax.set_xlabel("日時")
-    ax.set_ylabel("日射量[kW/m^2]")
-    ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M:%S"))
-
     [plot_daily(dt_str, i) for i, dt_str in enumerate(dts)]  # np.vectorizeで書くとバグる
 
-    ax.legend()
+    axes[0].set_xlabel("日時")
+    axes[0].set_ylabel("日射量[kW/m^2]")
+    axes[0].xaxis.set_major_formatter(mdates.DateFormatter("%H:%M:%S"))
+    axes[0].legend()
+
+    axes[1].set_xlabel("日時")
+    axes[1].set_ylabel("理論値 - 実測値[kW/m^2]")
+    axes[1].xaxis.set_major_formatter(mdates.DateFormatter("%H:%M:%S"))
+    axes[1].legend()
 
     plt.show()
     # plt.savefig("./graph.png")
