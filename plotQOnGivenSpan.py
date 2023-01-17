@@ -8,7 +8,7 @@ import argparse
 import numpy as np
 from utils.q import calc_q_kw
 from utils.correlogram import (
-    unifyDeltasBetweenDts,
+    unify_deltas_between_dts,
 )
 
 
@@ -63,7 +63,7 @@ if __name__ == "__main__":
 
     dt_all, Q_all = load_q_and_dt_for_period(from_dt, diff_days, True)
 
-    dt_all, Q_all = unifyDeltasBetweenDts(dt_all, Q_all)
+    dt_all, Q_all = unify_deltas_between_dts(dt_all, Q_all)
 
     dt_all = np.array(dt_all)
     Q_all = np.array(Q_all)

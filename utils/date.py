@@ -1,4 +1,5 @@
 import datetime
+import time
 
 
 def getYear(dt):
@@ -53,6 +54,18 @@ def getPointsNumberBeCompleted(dt_past, dt_future):
 
     pointsNumber = second_future + diff_seconds - second_past
     return int(pointsNumber)
+
+
+def dt_to_hours(dt):
+    return dt.days * 24 + (dt.seconds + dt.microseconds / 1000000) / 60 / 60
+
+
+def time_to_seconds(t):
+    return (t.hour * 60 + t.minute) * 60 + t.second
+
+
+def datetime_to_miliseconds(dt):
+    return int(time.mktime(dt.timetuple()) * 1000) + int(dt.microsecond / 1000)
 
 
 # 2点間の距離における補完する点の(始点からみた際の)位置の割合？を返す

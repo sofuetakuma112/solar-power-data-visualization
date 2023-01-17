@@ -7,7 +7,7 @@ import japanize_matplotlib
 from utils.correlogram import (
     NotEnoughLengthErr,
     testEqualityDeltaBetweenDts,
-    unifyDeltasBetweenDts,
+    unify_deltas_between_dts,
 )
 from utils.es.load import load_q_and_dt_for_period
 import argparse
@@ -34,7 +34,7 @@ def main():
     print(f"dt_all[-1]: {dt_all[-1]}")
 
     # 時系列データのデルタを均一にする
-    dt_all, Q_all = unifyDeltasBetweenDts(dt_all, Q_all)
+    dt_all, Q_all = unify_deltas_between_dts(dt_all, Q_all)
 
     # 時系列データの点間が全て1.0[s]かテストする
     testEqualityDeltaBetweenDts(dt_all)

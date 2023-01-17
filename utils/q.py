@@ -1,5 +1,6 @@
 import numpy as np
 import datetime
+import pvlib
 
 # 単位はワット
 def calcQ(dt, lat_deg, lng_deg):
@@ -19,7 +20,6 @@ def calcQ(dt, lat_deg, lng_deg):
         - (0.002697 * np.cos(3 * theta))
         + (0.001480 * np.sin(3 * theta))
     )
-
     # 地心太陽距離のルートの中身
     geocentri_distance_like = (
         1.000110
@@ -28,7 +28,6 @@ def calcQ(dt, lat_deg, lng_deg):
         + 0.000719 * np.cos(2 * theta)
         + 0.000077 * np.sin(2 * theta)
     )
-
     eq = (  # 均時差
         0.000075
         + 0.001868 * np.cos(theta)
@@ -36,7 +35,6 @@ def calcQ(dt, lat_deg, lng_deg):
         - 0.014615 * np.cos(2 * theta)
         - 0.040849 * np.sin(2 * theta)
     )
-
     # lng_rad = lng_deg * np.pi / 180
     phi = lat_deg * np.pi / 180
 
@@ -65,5 +63,59 @@ def calc_q_kw(dt, lng=33.82794, lat=132.75093):
     return max(calcQ(dt, lng, lat), 0) / 1000
 
 
+def calc_q_v2(date, latitude, longitude):
+    # 太陽高度角、方位角を計算
+    solpos = pvlib.solarposition.get_solarposition(date, latitude, longitude)
+
+    print(solpos)
+
+    # 地上に到達する日射量を計算
+
+    # pvlib.irradiance.aoiの引数
+    # surface_tilt : 数値
+    #     パネルの水平方向からの傾き。
+    # surface_azimuth : 数値
+    #     北からのパネルの方位角。
+    # solar_zenith : 数値
+    #     太陽天頂角。
+    # solar_azimuth : 数値
+    #     太陽の方位角。
+    aoi = pvlib.irradiance.aoi(0, 0, solpos["apparent_zenith"], solpos["azimuth"])
+    dni_extra = pvlib.irradiance.get_extra_radiation(date)
+
+    # 太陽高度角、方位角、日射量指数から全球水平面放射照度を計算
+    total_irrad = pvlib.irradiance.get_total_irradiance(
+        0,
+        0,
+        solpos["apparent_zenith"],
+        solpos["azimuth"],
+        airmass=pvlib.atmosphere.relativeairmass(solpos["apparent_zenith"]),
+        dni=pvlib.irradiance.extraradiation(date),
+        ghi=None,
+        dhi=None,
+        dni_extra=None,
+        model="haydavies",
+    )
+
+    # 全球水平面放射照度を表示
+    print(total_irrad)
+    dni = pvlib.irradiance.dni(aoi, dni_extra, solpos["zenith"])
+
+    print(f"aoi: {aoi.iloc[-1]}")
+
+    # # 太陽高度角、方位角から直達日射量を計算
+    # print(f"solpos['zenith']: {type(solpos['zenith'])}")
+    # dni = pvlib.irradiance.dni(solpos['apparent_zenith'], solpos['azimuth'], solpos["zenith"])
+
+    return dni
+
+
+def calc_q_kw_v2(dt, lng=33.82794, lat=132.75093):
+    return max(calc_q_v2(dt, lng, lat), 0) / 1000
+
+
 if __name__ == "__main__":
     print(calcQ(datetime.datetime(2022, 5, 17, 17, 53), 33.82794, 132.75093))
+    print(
+        f"dni: {calc_q_v2(datetime.datetime(2022, 5, 17, 17, 53), 33.82794, 132.75093)}"
+    )

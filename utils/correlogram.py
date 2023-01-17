@@ -92,7 +92,7 @@ def get_dt_list_and_coef_be_complete(dts, qs):
     return comps
 
 
-def unifyDeltasBetweenDts(dts, qs):
+def unify_deltas_between_dts(dts, qs):
     """
     補完した日時データとそれに対応した日射量のリストを取得する
     """

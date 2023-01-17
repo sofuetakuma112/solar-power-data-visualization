@@ -5,7 +5,7 @@ from utils.q import calc_q_kw
 import numpy as np
 import japanize_matplotlib
 import math
-from correlogram import unifyDeltasBetweenDts
+from correlogram import unify_deltas_between_dts
 import matplotlib.pyplot as plt
 from utils.correlogram import calcLag, shiftDts
 from utils.es.load import load_q_and_dt_for_period
@@ -27,7 +27,7 @@ def main():
     # 与えた期間の日射量と計測日時をファイルから読み込む(dtでソート済み)
     dt_all, Q_all = load_q_and_dt_for_period(fromDt, fixedDaysLen)
     # 時系列データのデルタを均一にする
-    dt_all, Q_all = unifyDeltasBetweenDts(dt_all, Q_all)
+    dt_all, Q_all = unify_deltas_between_dts(dt_all, Q_all)
 
     # 実測値の日時データからトリムして計算値用の日時データを作るので
     # トリムする範囲を指定するためのインデックスを求める

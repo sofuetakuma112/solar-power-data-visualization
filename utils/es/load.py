@@ -18,6 +18,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import japanize_matplotlib
 
+import time
+
 
 class NotEnoughDocErr:
     def __init__(self):
@@ -91,7 +93,7 @@ def time_to_seconds(t):
 # return docs
 
 
-# データの補完はunifyDeltasBetweenDtsに任せる
+# データの補完はunify_deltas_between_dtsに任せる
 # そのためにここでは00:00:00と23:59:59にそれぞれデータ点を挿入する
 def load_q_and_dt_for_period(
     start_dt,
@@ -142,7 +144,7 @@ def load_q_and_dt_for_period(
 
         # TODO: 完全補完を実装する
         # 始点と終点のデータ点より外側を0埋めする
-        # 始点と終点の内側の補完はunifyDeltasBetweenDts関数に任せる
+        # 始点と終点の内側の補完はunify_deltas_between_dts関数に任せる
 
         year = dt_crr_fetching.year
         month = dt_crr_fetching.month
@@ -160,6 +162,9 @@ def load_q_and_dt_for_period(
             first_dt = isoformat2dt(extractFieldsFromDoc(docs[0], "JPtime"))
             last_dt = isoformat2dt(extractFieldsFromDoc(docs[-1], "JPtime"))
 
+            print(f"first_dt: {first_dt}")
+            print(f"last_dt: {last_dt}")
+
             start_dt = datetime.datetime(
                 first_dt.year, first_dt.month, first_dt.day, 0, 0, 0
             )
@@ -167,7 +172,12 @@ def load_q_and_dt_for_period(
                 last_dt.year, last_dt.month, last_dt.day, 0, 0, 0
             ) + datetime.timedelta(days=1)
 
+            print(f"start_dt: {start_dt}")
+            print(f"end_dt: {end_dt}")
+
             diff_seconds_from_start = np.floor((first_dt - start_dt).seconds)
+
+            print(f"diff_seconds_from_start: {diff_seconds_from_start}")
 
             if diff_seconds_from_start == 0:
                 # docs_from_start_to_firstの長さは0
@@ -186,6 +196,7 @@ def load_q_and_dt_for_period(
             print(f"middle 0: {doc_to_dt(docs[0])}")
             print(f"middle -1: {doc_to_dt(docs[-1])}")
 
+            # 2
             diff_seconds_from_last_to_end = np.floor((end_dt - last_dt).seconds)
             offset = np.ceil(
                 time_to_seconds(
@@ -266,7 +277,6 @@ def load_q_and_dt_for_period(
 
         dts_per_day = np.array(dts_per_day)
 
-        # FIXME: 全てではなく、一つでもlastDtより未来の日時があればOKなので修正する
         if np.any(dts_per_day > lastDt):
             # dts_per_dayの並びの中にlastDtが存在する
             mask = dts_per_day <= lastDt

@@ -12,7 +12,7 @@ import numpy as np
 
 from utils.correlogram import (
     testEqualityDeltaBetweenDts,
-    unifyDeltasBetweenDts,
+    unify_deltas_between_dts,
     calc_ratios,
 )
 from utils.es.load import load_q_and_dt_for_period
@@ -34,7 +34,7 @@ if __name__ == "__main__":
     dt_all, Q_all = load_q_and_dt_for_period(
         fromDt, fixedDaysLen
     )  # 与えた期間の日射量と計測日時をファイルから読み込む(dtでソート済み)
-    dt_all, Q_all = unifyDeltasBetweenDts(dt_all, Q_all)  # 時系列データのデルタを均一にする
+    dt_all, Q_all = unify_deltas_between_dts(dt_all, Q_all)  # 時系列データのデルタを均一にする
     testEqualityDeltaBetweenDts(dt_all)  # 時系列データの点間が全て1.0[s]かテストする
 
     Q_all_copy = copy.deepcopy(Q_all)

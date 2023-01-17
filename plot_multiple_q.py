@@ -8,25 +8,10 @@ import argparse
 import numpy as np
 from utils.q import calc_q_kw
 from utils.correlogram import (
-    unifyDeltasBetweenDts,
+    unify_deltas_between_dts,
 )
 import matplotlib.dates as mdates
-import time
-
-
-def dt_to_hours(dt):
-    return dt.days * 24 + (dt.seconds + dt.microseconds / 1000000) / 60 / 60
-
-
-def time_to_seconds(t):
-    return (t.hour * 60 + t.minute) * 60 + t.second
-
-
-def datetime_to_miliseconds(dt):
-    return int(time.mktime(dt.timetuple()) * 1000) + int(dt.microsecond / 1000)
-
-
-colorlist = ["r", "g", "b", "c", "m", "y", "k", "w"]
+from utils.colors import colorlist
 
 # > python3 plot_multiple_q.py -dts 2022/09/30 2022/04/08 2022/11/20 2022/05/03 2022/05/18 2022/10/30
 if __name__ == "__main__":
@@ -40,7 +25,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
     dts = np.array(args.dts)
 
-    sorted_indexes = np.vectorize(lambda dt: datetime.datetime.strptime(dt, "%Y/%m/%d"))(dts).argsort()
+    sorted_indexes = np.vectorize(
+        lambda dt: datetime.datetime.strptime(dt, "%Y/%m/%d")
+    )(dts).argsort()
     dts = dts[sorted_indexes]
 
     axes = [plt.subplots()[1] for _ in range(2)]
@@ -59,7 +46,7 @@ if __name__ == "__main__":
 
         diff_days = 1.0
         dt_all, Q_all = load_q_and_dt_for_period(from_dt, diff_days, True)
-        dt_all, Q_all = unifyDeltasBetweenDts(dt_all, Q_all)
+        dt_all, Q_all = unify_deltas_between_dts(dt_all, Q_all)
 
         dt_all = np.array(dt_all)
         Q_all = np.array(Q_all)
