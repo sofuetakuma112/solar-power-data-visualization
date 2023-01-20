@@ -51,25 +51,34 @@ if __name__ == "__main__":
 
     axes = [plt.subplots()[1] for _ in range(num_interp)]
     for i, alpha in enumerate(interp_steps):
+        # TODO: 2022/10/30の場合、06:30 ~ 08:30の間だけインターポレーションする
+        mask = (
+            dt_all > datetime.datetime(int(year), int(month), int(date), 6, 30, 0)
+        ) & (dt_all < datetime.datetime(int(year), int(month), int(date), 8, 30, 0))
         interp_c_all = calced_q_all + (Q_all - calced_q_all) * alpha
 
-        corr = np.correlate(Q_all, interp_c_all, "full")
+        calced_q_all[mask] = interp_c_all[mask]
+
+        corr = np.correlate(Q_all, calced_q_all, "full")
         estimated_delay = corr.argmax() - (len(interp_c_all) - 1)
 
-        print(estimated_delay)
+        print(f"figure: {i + 1}, ずれ時間: {estimated_delay}[s]")
 
         axes[i].plot(
             unified_dates,
             Q_all,
             label=f"実測値: {dt_all[0].strftime('%Y-%m-%d')}",
-            color=colorlist[i],
+            color=colorlist[0],
         )
         axes[i].plot(
             unified_dates,
-            interp_c_all,
-            label=f"理論値: {dt_all[0].strftime('%Y-%m-%d')}",
+            calced_q_all,
+            label=f"計算値: {dt_all[0].strftime('%Y-%m-%d')}",
             linestyle="dashed",
-            color=colorlist[i],
+            color=colorlist[1],
+        )
+        axes[i].set_title(
+            f"06:30 〜 08:30, ずれ時間: {estimated_delay}[s], alpha: {alpha}"
         )
         axes[i].set_xlabel("時刻")
         axes[i].set_ylabel("日射量[kW/m^2]")
