@@ -1,4 +1,5 @@
 pickles/
+jsons/
 **/__pycache__/
 
 **/.env
