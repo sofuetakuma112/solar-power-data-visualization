@@ -1,5 +1,4 @@
 import datetime
-import sys
 import matplotlib.pyplot as plt
 import japanize_matplotlib
 from utils.es.load import load_q_and_dt_for_period
@@ -7,9 +6,7 @@ import os
 import argparse
 import numpy as np
 from utils.q import calc_q_kw
-from utils.correlogram import (
-    unify_deltas_between_dts,
-)
+from utils.correlogram import unify_deltas_between_dts_v2
 from utils.colors import colorlist
 import matplotlib.dates as mdates
 
@@ -30,10 +27,7 @@ if __name__ == "__main__":
     parser.add_argument("-dt", type=str)  # グラフ描画したい日付のリスト
     args = parser.parse_args()
 
-    dt_str = args.dt
-
-    year, month, date = dt_str.split("/")
-
+    year, month, date = args.dt.split("/")
     from_dt = datetime.datetime(
         int(year),
         int(month),
@@ -41,11 +35,8 @@ if __name__ == "__main__":
     )
 
     diff_days = 1.0
-    dt_all, Q_all = load_q_and_dt_for_period(from_dt, diff_days, True)
-    dt_all, Q_all = unify_deltas_between_dts(dt_all, Q_all)
-
-    dt_all = np.array(dt_all)
-    Q_all = np.array(Q_all)
+    dt_all, q_all = load_q_and_dt_for_period(from_dt, diff_days, True)
+    dt_all, q_all = unify_deltas_between_dts_v2(dt_all, q_all)
 
     calced_q_all = np.vectorize(calc_q_kw)(dt_all)
 
@@ -68,7 +59,7 @@ if __name__ == "__main__":
         > dt_all
     ) & (dt_all > datetime.datetime(int(year), int(month), int(date), 0, 0, 0))
 
-    masked_q_all = Q_all[mask]
+    masked_q_all = q_all[mask]
     masked_q_all_mean0 = masked_q_all - masked_q_all.mean()
 
     masked_calc_q_all = calced_q_all[mask]

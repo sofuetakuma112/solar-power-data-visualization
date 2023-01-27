@@ -44,7 +44,7 @@ import japanize_matplotlib
 import math
 from utils.correlogram import (
     NotEnoughLengthErr,
-    testEqualityDeltaBetweenDts,
+    test_equality_delta_between_dts,
     unify_deltas_between_dts,
     calc_dts_for_q_calc,
     slides_q_calc_for_corr,
@@ -97,7 +97,7 @@ if __name__ == "__main__":
             dt_all = dt_all_or_err
 
         dt_all, Q_all = unify_deltas_between_dts(dt_all, Q_all)  # 時系列データのデルタを均一にする
-        testEqualityDeltaBetweenDts(dt_all)  # 時系列データの点間が全て1.0[s]かテストする
+        test_equality_delta_between_dts(dt_all)  # 時系列データの点間が全て1.0[s]かテストする
 
         Qs_calc = list(
             map(

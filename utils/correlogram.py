@@ -1,5 +1,5 @@
 import datetime
-from utils.date import get_relative_position_between_two_dts
+from utils.date import get_relative_position_between_two_dts, get_total_seconds
 from utils.q import calc_q_kw
 import numpy as np
 import math
@@ -52,7 +52,7 @@ def shiftDts(dts, days, hour_coef):
     )
 
 
-def testEqualityDeltaBetweenDts(dts, delta=1.0):
+def test_equality_delta_between_dts(dts, delta=1.0):
     """
     日時データのdeltaが1[s]で統一されているかテストする
     """
@@ -83,7 +83,9 @@ def get_dt_list_and_coef_be_complete(dts, qs):
         q_delta = q_next - q_crr
 
         # 補完する時刻と⊿yの係数のリストを取得する
-        dt_and_increment_coef_list = get_relative_position_between_two_dts(dt_crr, dt_next)
+        dt_and_increment_coef_list = get_relative_position_between_two_dts(
+            dt_crr, dt_next
+        )
         for dt_and_coef in dt_and_increment_coef_list:
             dt_comp, increment_coef = dt_and_coef
             q_comp = q_crr + q_delta * increment_coef
@@ -116,6 +118,27 @@ def unify_deltas_between_dts(dts, qs):
         list(map(lambda dt_and_q: dt_and_q[0], merged_dt_and_q_list)),
         list(map(lambda dt_and_q: dt_and_q[1], merged_dt_and_q_list)),
     ]
+
+
+def unify_deltas_between_dts_v2(dts, qs):
+    """
+    補完した日時データとそれに対応した日射量のリストを取得する
+    """
+    # 指定した間隔で補完
+    start_date = dts[0]  # YYYY-mm-dd:00:00:00であることが前提
+    equally_spaced_dt = np.vectorize(
+        lambda s: start_date + datetime.timedelta(seconds=float(s))
+    )(np.arange(0, 60 * 60 * 24, 1))
+    completed_q = np.interp(
+        np.vectorize(get_total_seconds)(equally_spaced_dt),
+        np.vectorize(get_total_seconds)(dts),
+        qs,
+    )  # 新しいx列に対応するy列を計算
+
+    # 時系列データの点間が全て1.0[s]かテストする
+    test_equality_delta_between_dts(equally_spaced_dt)
+
+    return equally_spaced_dt, completed_q
 
 
 class NotEnoughLengthErr:

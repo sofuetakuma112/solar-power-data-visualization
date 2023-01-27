@@ -5,7 +5,7 @@ import numpy as np
 import japanize_matplotlib
 import math
 import matplotlib.pyplot as plt
-from utils.correlogram import shiftDts, testEqualityDeltaBetweenDts
+from utils.correlogram import shiftDts, test_equality_delta_between_dts
 
 
 def main():
@@ -37,7 +37,7 @@ def main():
         else:
             dts.append(newDt)
 
-    testEqualityDeltaBetweenDts(dts, 1 * coef)
+    test_equality_delta_between_dts(dts, 1 * coef)
 
     Q_all = list(
         map(

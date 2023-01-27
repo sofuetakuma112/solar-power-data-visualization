@@ -6,7 +6,7 @@ import numpy as np
 import japanize_matplotlib
 from utils.correlogram import (
     NotEnoughLengthErr,
-    testEqualityDeltaBetweenDts,
+    test_equality_delta_between_dts,
     unify_deltas_between_dts,
 )
 from utils.es.load import load_q_and_dt_for_period
@@ -37,7 +37,7 @@ def main():
     dt_all, Q_all = unify_deltas_between_dts(dt_all, Q_all)
 
     # 時系列データの点間が全て1.0[s]かテストする
-    testEqualityDeltaBetweenDts(dt_all)
+    test_equality_delta_between_dts(dt_all)
 
     dt_all = np.array(dt_all)
     Q_all = np.array(Q_all)

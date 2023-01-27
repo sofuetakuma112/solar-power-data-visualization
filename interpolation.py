@@ -8,7 +8,7 @@ import argparse
 import numpy as np
 from utils.q import calc_q_kw
 from utils.correlogram import (
-    unify_deltas_between_dts,
+    unify_deltas_between_dts_v2,
 )
 from utils.colors import colorlist
 import matplotlib.dates as mdates
@@ -31,10 +31,7 @@ if __name__ == "__main__":
 
     diff_days = 1.0
     dt_all, Q_all = load_q_and_dt_for_period(from_dt, diff_days, True)
-    dt_all, Q_all = unify_deltas_between_dts(dt_all, Q_all)
-
-    dt_all = np.array(dt_all)
-    Q_all = np.array(Q_all)
+    dt_all, Q_all = unify_deltas_between_dts_v2(dt_all, Q_all)
 
     calced_q_all = np.vectorize(calc_q_kw)(dt_all)
 
@@ -46,7 +43,7 @@ if __name__ == "__main__":
     )(dt_all)
 
     # 理論値を段階的に実測値に近づけていく
-    num_interp = 5  # インターポレーションする数
+    num_interp = 10  # インターポレーションする数
     interp_steps = np.linspace(0, 1, num_interp)
 
     axes = [plt.subplots()[1] for _ in range(num_interp)]

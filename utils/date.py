@@ -107,6 +107,11 @@ def get_relative_position_between_two_dts(dt_past, dt_future):
     return list(filter(lambda dt_and_coef: dt_and_coef[1] != 1.0, dt_and_rates))
 
 
+def get_total_seconds(dt):
+    epoch_time = datetime.datetime(1970, 1, 1)
+    return (dt - epoch_time).total_seconds()
+
+
 if __name__ == "__main__":
     dt1 = datetime.datetime(2018, 12, 31, 5, 0, 30, 500000)
     dt2 = datetime.datetime(2018, 12, 31, 5, 0, 31, 200000)

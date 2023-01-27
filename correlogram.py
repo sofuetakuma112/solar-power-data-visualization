@@ -8,7 +8,7 @@ import japanize_matplotlib
 import copy
 from utils.correlogram import (
     NotEnoughLengthErr,
-    testEqualityDeltaBetweenDts,
+    test_equality_delta_between_dts,
     unify_deltas_between_dts,
     calc_dts_for_q_calc,
     slides_q_calc_for_corr,
@@ -52,7 +52,7 @@ def main():
     dt_all, Q_all = unify_deltas_between_dts(dt_all, Q_all)
 
     # 時系列データの点間が全て1.0[s]かテストする
-    testEqualityDeltaBetweenDts(dt_all)
+    test_equality_delta_between_dts(dt_all)
 
     # 実測値の日時データからトリムして計算値用の日時データを作るので
     # トリムする範囲を指定するためのインデックスを求める
