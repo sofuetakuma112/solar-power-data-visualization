@@ -7,7 +7,7 @@ import math
 from utils.correlogram import (
     NotEnoughLengthErr,
     testEqualityDeltaBetweenDts,
-    unifyDeltasBetweenDts,
+    unify_deltas_between_dts,
     calc_dts_for_q_calc,
     slides_q_calc_for_corr,
     calc_ratios,
@@ -71,7 +71,10 @@ def calc_corr(
     > python3 recursively_until_threshold_cross-correlation_is_exceeded.py 2022/04/01 2.5 2 0.27
     """
     fetchDocsByPeriod(fromDt, toDt)  # pickleファイルがない場合、取得する
-    dt_all_or_err, Q_all = load_q_and_dt_for_period(  # 計算値をスライドさせるため、固定側は動的側より長いリスト長が必要となる
+    (
+        dt_all_or_err,
+        Q_all,
+    ) = load_q_and_dt_for_period(  # 計算値をスライドさせるため、固定側は動的側より長いリスト長が必要となる
         fromDt, fixedSpanLen, no_missing_data_err
     )  # 与えた期間の日射量と計測日時をファイルから読み込む(dtでソート済み)
 
@@ -81,7 +84,7 @@ def calc_corr(
     else:
         dt_all = dt_all_or_err
 
-    dt_all, Q_all = unifyDeltasBetweenDts(dt_all, Q_all)  # 時系列データのデルタを均一にする
+    dt_all, Q_all = unify_deltas_between_dts(dt_all, Q_all)  # 時系列データのデルタを均一にする
     testEqualityDeltaBetweenDts(dt_all)  # 時系列データの点間が全て1.0[s]かテストする
 
     # 【デバッグ】
@@ -130,10 +133,12 @@ def calc_corr(
                     q_ndarray = dt_and_q_list_per_day[:, 1]
                     q_max = np.max(q_ndarray)
 
-                    if q_max == 0.0:
-                        scaled_q_calc_ndarray = q_calc_ndarray
-                    else:
-                        scaled_q_calc_ndarray = q_calc_ndarray * (q_max / q_calc_max)
+                    scaled_q_calc_ndarray = q_calc_ndarray
+
+                    # if q_max == 0.0:
+                    #     scaled_q_calc_ndarray = q_calc_ndarray
+                    # else:
+                    #     scaled_q_calc_ndarray = q_calc_ndarray * (q_max / q_calc_max)
 
                     diff_with_scaled_q_calc_per_day = np.square(
                         scaled_q_calc_ndarray - q_ndarray
@@ -155,7 +160,7 @@ def calc_corr(
                 return diff_square_sum_sqrt
 
             masked = dt_and_q_list[create_mask_func(ymds)]
-            return _calc_daily_diff(masked)
+            return _calc_daily_diff(masked)  # 戻り値はスカラ??
 
         def get_ymd(create_mask_func):
             masked = dt_and_q_list[create_mask_func(ymds)]
@@ -174,14 +179,27 @@ def calc_corr(
             [diffs.reshape([-1, 1]), dates.reshape([-1, 1])], 1
         )
 
-        print(f"diff_euclid_distances: {diff_euclid_distances}")
-
+        # diffでソート
         sorted_row_indexes = diff_euclid_distances[:, 0].astype(np.float32).argsort()
 
         # sorted_dates = np.apply_along_axis(
         #     lambda row: row[1], 1, diff_euclid_distances[sorted_row_indexes, :]
         # )
         sorted_dates = diff_euclid_distances[sorted_row_indexes, 1]
+
+        # sorted_date_strs = np.vectorize(lambda dt: dt.strftime("%Y-%m-%d"))(
+        #     sorted_dates
+        # )
+
+        # list(
+        #     np.concatenate(
+        #         [
+        #             diff_euclid_distances[sorted_row_indexes, 0].reshape([-1, 1]),
+        #             sorted_date_strs.reshape([-1, 1]),
+        #         ],
+        #         1,
+        #     )
+        # )
 
         top_n_dts = sorted_dates[:top_n]
 
