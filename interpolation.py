@@ -59,8 +59,10 @@ if __name__ == "__main__":
 
         calced_q_all[mask] = interp_c_all[mask]
 
-        corr = np.correlate(Q_all, calced_q_all, "full")
-        estimated_delay = corr.argmax() - (len(interp_c_all) - 1)
+        corr = np.correlate(
+            Q_all - Q_all.mean(), calced_q_all - calced_q_all.mean(), "full"
+        )
+        estimated_delay = corr.argmax() - (len(calced_q_all) - 1)
 
         print(f"figure: {i + 1}, ずれ時間: {estimated_delay}[s]")
 
@@ -77,9 +79,7 @@ if __name__ == "__main__":
             linestyle="dashed",
             color=colorlist[1],
         )
-        axes[i].set_title(
-            f"06:30 〜 08:30, ずれ時間: {estimated_delay}[s], alpha: {alpha}"
-        )
+        axes[i].set_title(f"06:30 〜 08:30, ずれ時間: {estimated_delay}[s], alpha: {alpha}")
         axes[i].set_xlabel("時刻")
         axes[i].set_ylabel("日射量[kW/m^2]")
         axes[i].xaxis.set_major_formatter(mdates.DateFormatter("%H:%M:%S"))
