@@ -24,7 +24,7 @@ def correlate_full(x, y):
     return result
 
 
-# > python3 plot_multiple_q.py -dt 2022/09/30
+# > python3 partial_corr.py -dt 2022/09/30
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-dt", type=str)  # グラフ描画したい日付のリスト
@@ -84,11 +84,6 @@ if __name__ == "__main__":
 
     corr = np.correlate(masked_q_all_mean0, masked_calc_q_all_mean0, "full")
     estimated_delay = corr.argmax() - (len(masked_calc_q_all_mean0) - 1)
-
-    # print(f"corr: {corr}")
-    # print(
-    #     f"correlate_full(masked_q_all, masked_calc_q_all): {correlate_full(masked_q_all, masked_calc_q_all)}"
-    # )
 
     print(f"ずれ時間: {estimated_delay}[s]")
 
