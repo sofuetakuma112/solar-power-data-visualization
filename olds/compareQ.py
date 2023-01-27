@@ -14,7 +14,7 @@ mode = args[3]
 dt = datetime.datetime(int(splitBySlash[0]), int(splitBySlash[1]), int(splitBySlash[2]))
 filePath = get_pickle_file_path_by_datetime(dt)
 
-fetch.fetchDocsByDatetime(dt)
+fetch.fetch_docs_by_datetime(dt)
 
 if mode == "q":
   plotQs(filePath, float(delay_str))
