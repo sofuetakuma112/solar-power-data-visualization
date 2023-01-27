@@ -1,3 +1,4 @@
+import json
 import sys
 import os
 
@@ -7,14 +8,14 @@ from elasticsearch import Elasticsearch
 import pickle
 import datetime
 
-from utils.file import get_pickle_file_path_by_datetime
+from utils.file import get_json_file_path_by_datetime
 
 from dotenv import load_dotenv
 
 load_dotenv(f"{os.getcwd()}/.env")
 
 
-def fetchDocsByDatetime(dt):
+def fetch_docs_by_datetime(dt):
     es = Elasticsearch(
         "http://133.71.201.197:9200",
         http_auth=(
@@ -25,13 +26,12 @@ def fetchDocsByDatetime(dt):
 
     indexName = "pcs_recyclekan"
 
-    data_type = "raw"
-    if not os.path.exists(f"{os.getcwd()}/pickles/{data_type}"):
-        os.mkdir(f"{os.getcwd()}/pickles/{data_type}")
+    if not os.path.exists(f"{os.getcwd()}/jsons"):
+        os.mkdir(f"{os.getcwd()}/jsons")
 
-    filePath = get_pickle_file_path_by_datetime(dt, data_type)
-    # すでにPickleファイルが存在するならElasticSearchから取得しない
-    if os.path.isfile(filePath):
+    file_path = get_json_file_path_by_datetime(dt)
+    # すでにJsonファイルが存在するならElasticSearchから取得しない
+    if os.path.isfile(file_path):
         return
 
     dt_next = dt + datetime.timedelta(days=1)
@@ -66,15 +66,15 @@ def fetchDocsByDatetime(dt):
         s_size = len(data["hits"]["hits"])
         result.extend(data["hits"]["hits"])
 
-    with open(filePath, "wb") as f:
-        pickle.dump(result, f)
+    with open(file_path, "wb") as f:
+        json.dump(result, f, ensure_ascii=False, indent=4)
 
     es.close()  # 内部接続を閉じる
 
 
 # 2日以上のデータをelasticsearchから取得する関数
 def fetchDocsByPeriod(fromDt, toDt):
-    # 1日おきにfetchDocsByDatetimeを呼び出してpickleファイルを書き込んでいく
+    # 1日おきにfetch_docs_by_datetimeを呼び出してpickleファイルを書き込んでいく
     # datetime同士の減算はtimedeltaのインスタンスになる
     dtDiff = toDt - fromDt
     dt_crr = fromDt
@@ -82,7 +82,7 @@ def fetchDocsByPeriod(fromDt, toDt):
     for _ in range(dtDiff.days + 1):
         if dt_crr > dt_now:
             break
-        fetchDocsByDatetime(dt_crr)
+        fetch_docs_by_datetime(dt_crr)
         dt_crr = dt_crr + datetime.timedelta(days=1)
 
 
