@@ -1,7 +1,8 @@
 import datetime
+import json
 from operator import itemgetter
 from utils.es import fetch, util
-from utils.file import get_pickle_file_path_by_datetime
+from utils.file import get_pickle_file_path_by_datetime, get_json_file_path_by_datetime
 import pickle
 from utils.es.util import (
     sortDocsByKey,
@@ -100,24 +101,18 @@ def load_q_and_dt_for_period(
     span,
     no_missing_data_err=False,  # Trueの場合、指定した期間にデータが取得できていない日があっても0埋めしてエラーを握りつぶす
 ):
-    Q_all = []
-    dt_all = []
+    q_all = np.array([])
+    dt_all = np.array([])
     dt_crr_fetching = start_dt
 
     span_float, span_int = math.modf(span)
     is_first_loop = True
     for _ in range(np.int64(np.ceil(span))):
-        fetch.fetchDocsByDatetime(dt_crr_fetching)
+        fetch.fetch_docs_by_datetime(dt_crr_fetching)
 
-        # complemented_file_path = get_pickle_file_path_by_datetime(
-        #     dt_crr_fetching, "complemented"
-        # )
-        # is_exist_complemented_file = os.path.isfile(complemented_file_path)
-
-        # 生データの読み込み
-        raw_file_path = get_pickle_file_path_by_datetime(dt_crr_fetching, "raw")
-        with open(raw_file_path, "rb") as f:
-            docs = pickle.load(f)
+        json_file_path = get_json_file_path_by_datetime(dt_crr_fetching)
+        with open(json_file_path, "rb") as f:
+            docs = np.array(json.load(f))
 
         epoch_time = datetime.datetime(1970, 1, 1)
         total_seconds_list = np.vectorize(
@@ -126,32 +121,14 @@ def load_q_and_dt_for_period(
             ).total_seconds()
         )(docs)
         sorted_indexes = np.argsort(total_seconds_list)
-        docs = np.array(docs)[sorted_indexes]
-
-        # # デバッグ
-        # jptimes = extractFieldsFromDocs(docs, "JPtime")
-        # dts_per_day = isoformats2dt(jptimes)
-        # qs_per_day = extractFieldsFromDocs(docs, "solarIrradiance(kw/m^2)")
-        # axes = [plt.subplots()[1] for _ in range(1)]
-        # axes[0].plot(
-        #     dts_per_day,
-        #     qs_per_day,
-        #     label=dts_per_day[0].strftime("%Y-%m-%d"),
-        # )
-        # axes[0].set_xlabel("日時")
-        # axes[0].set_ylabel("日射量[kW/m^2]")
-        # plt.show()
-
-        # TODO: 完全補完を実装する
-        # 始点と終点のデータ点より外側を0埋めする
-        # 始点と終点の内側の補完はunify_deltas_between_dts関数に任せる
+        docs = docs[sorted_indexes]
 
         year = dt_crr_fetching.year
         month = dt_crr_fetching.month
         day = dt_crr_fetching.day
         date = datetime.datetime(year, month, day)
 
-        if len(docs) == 0:
+        if docs.size == 0:
             # 00:00:00 ~ 23:59:59まで全て補完する
             docs = np.vectorize(
                 lambda second_from_start: create_doc_dict(
@@ -189,7 +166,7 @@ def load_q_and_dt_for_period(
                     )
                 )(np.arange(0, diff_seconds_from_start, 1))
 
-            if len(docs_from_start_to_first) > 0:
+            if docs_from_start_to_first.size > 0:
                 print(f"left 0: {doc_to_dt(docs_from_start_to_first[0])}")
                 print(f"left -1: {doc_to_dt(docs_from_start_to_first[-1])}")
 
@@ -219,7 +196,7 @@ def load_q_and_dt_for_period(
                     np.arange(offset + 1, offset + diff_seconds_from_last_to_end + 1, 1)
                 )  # FIXME: +1しなくても良い方を探す
 
-            if len(docs_from_last_to_end) > 0:
+            if docs_from_last_to_end.size > 0:
                 print(f"right 0: {doc_to_dt(docs_from_last_to_end[0])}")
                 print(f"right -1: {doc_to_dt(docs_from_last_to_end[-1])}")
 
@@ -262,9 +239,22 @@ def load_q_and_dt_for_period(
         #     with open(complemented_file_path, "wb") as f:
         #         pickle.dump(docs, f)
 
-        docs = sortDocsByKey(docs, "JPtime")
-        jptimes = extractFieldsFromDocs(docs, "JPtime")
-        dts_per_day = isoformats2dt(jptimes)
+        # TODO: 時系列データが正しく並んでいるかテストする
+        total_seconds_list = np.vectorize(
+            lambda doc: (
+                isoformat2dt(extractFieldsFromDoc(doc, "JPtime")) - epoch_time
+            ).total_seconds()
+        )(docs)
+        source_indexes = np.argsort(total_seconds_list)
+        target_indexes = np.arange(0, source_indexes.size, 1)
+
+        if not np.allclose(source_indexes, target_indexes):
+            print("docsが正しくソートできていない")
+
+        jptimes = np.vectorize(lambda doc: extractFieldsFromDoc(doc, "JPtime"))(docs)
+        dts_per_day = np.vectorize(isoformat2dt)(jptimes)
+
+        qs_per_day = extractFieldsFromDocs(docs, "solarIrradiance(kw/m^2)")
 
         if is_first_loop:
             lastDt = (
@@ -273,9 +263,6 @@ def load_q_and_dt_for_period(
                 + datetime.timedelta(hours=span_float * 24)
             )
             is_first_loop = False
-        qs_per_day = extractFieldsFromDocs(docs, "solarIrradiance(kw/m^2)")
-
-        dts_per_day = np.array(dts_per_day)
 
         if np.any(dts_per_day > lastDt):
             # dts_per_dayの並びの中にlastDtが存在する
@@ -283,16 +270,16 @@ def load_q_and_dt_for_period(
             dts_under_last_dt_per_day = dts_per_day[mask]
             qs_under_last_dt_per_day = qs_per_day[mask]
 
-            Q_all = list(chain(Q_all, qs_under_last_dt_per_day))
-            dt_all = list(chain(dt_all, dts_under_last_dt_per_day))
+            q_all = np.append(q_all, qs_under_last_dt_per_day)
+            dt_all = np.append(dt_all, dts_under_last_dt_per_day)
             break
 
-        Q_all = list(chain(Q_all, qs_per_day))
-        dt_all = list(chain(dt_all, dts_per_day))
+        q_all = np.append(q_all, qs_per_day)
+        dt_all = np.append(dt_all, dts_per_day)
 
         dt_crr_fetching = dt_crr_fetching + datetime.timedelta(days=1)
 
-    return [dt_all, Q_all]
+    return [dt_all, q_all]
 
 
 def loadQAndDtForAGivenPeriod(fromDt, toDt, includesNoDataDay=False):
@@ -301,7 +288,7 @@ def loadQAndDtForAGivenPeriod(fromDt, toDt, includesNoDataDay=False):
     dtDiff = toDt - fromDt
     dt_crr = fromDt
     for _ in range(dtDiff.days + 1):
-        fetch.fetchDocsByDatetime(dt_crr)
+        fetch.fetch_docs_by_datetime(dt_crr)
         filePath = get_pickle_file_path_by_datetime(dt_crr)
         with open(filePath, "rb") as f:
             docs = pickle.load(f)
