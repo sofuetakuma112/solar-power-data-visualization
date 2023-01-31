@@ -93,6 +93,7 @@ def time_to_seconds(t):
 
 # return docs
 
+EPOCH_TIME = datetime.datetime(1970, 1, 1)
 
 # データの補完はunify_deltas_between_dtsに任せる
 # そのためにここでは00:00:00と23:59:59にそれぞれデータ点を挿入する
@@ -114,14 +115,15 @@ def load_q_and_dt_for_period(
         with open(json_file_path, "rb") as f:
             docs = np.array(json.load(f))
 
-        epoch_time = datetime.datetime(1970, 1, 1)
-        total_seconds_list = np.vectorize(
-            lambda doc: (
-                isoformat2dt(extractFieldsFromDoc(doc, "JPtime")) - epoch_time
-            ).total_seconds()
-        )(docs)
-        sorted_indexes = np.argsort(total_seconds_list)
-        docs = docs[sorted_indexes]
+        total_seconds_list = np.array([])
+        if docs.size != 0:
+            total_seconds_list = np.vectorize(
+                lambda doc: (
+                    isoformat2dt(extractFieldsFromDoc(doc, "JPtime")) - EPOCH_TIME
+                ).total_seconds()
+            )(docs)
+            sorted_indexes = np.argsort(total_seconds_list)
+            docs = docs[sorted_indexes]
 
         year = dt_crr_fetching.year
         month = dt_crr_fetching.month
@@ -132,15 +134,15 @@ def load_q_and_dt_for_period(
             # 00:00:00 ~ 23:59:59まで全て補完する
             docs = np.vectorize(
                 lambda second_from_start: create_doc_dict(
-                    date + datetime.timedelta(seconds=second_from_start), 0
+                    date + datetime.timedelta(seconds=int(second_from_start)), 0
                 )
             )(np.arange(0, 64000, 1))
         else:
             first_dt = isoformat2dt(extractFieldsFromDoc(docs[0], "JPtime"))
             last_dt = isoformat2dt(extractFieldsFromDoc(docs[-1], "JPtime"))
 
-            print(f"first_dt: {first_dt}")
-            print(f"last_dt: {last_dt}")
+            # print(f"first_dt: {first_dt}")
+            # print(f"last_dt: {last_dt}")
 
             start_dt = datetime.datetime(
                 first_dt.year, first_dt.month, first_dt.day, 0, 0, 0
@@ -149,12 +151,12 @@ def load_q_and_dt_for_period(
                 last_dt.year, last_dt.month, last_dt.day, 0, 0, 0
             ) + datetime.timedelta(days=1)
 
-            print(f"start_dt: {start_dt}")
-            print(f"end_dt: {end_dt}")
+            # print(f"start_dt: {start_dt}")
+            # print(f"end_dt: {end_dt}")
 
             diff_seconds_from_start = np.floor((first_dt - start_dt).seconds)
 
-            print(f"diff_seconds_from_start: {diff_seconds_from_start}")
+            # print(f"diff_seconds_from_start: {diff_seconds_from_start}")
 
             if diff_seconds_from_start == 0:
                 # docs_from_start_to_firstの長さは0
@@ -166,12 +168,12 @@ def load_q_and_dt_for_period(
                     )
                 )(np.arange(0, diff_seconds_from_start, 1))
 
-            if docs_from_start_to_first.size > 0:
-                print(f"left 0: {doc_to_dt(docs_from_start_to_first[0])}")
-                print(f"left -1: {doc_to_dt(docs_from_start_to_first[-1])}")
+            # if docs_from_start_to_first.size > 0:
+            # print(f"left 0: {doc_to_dt(docs_from_start_to_first[0])}")
+            # print(f"left -1: {doc_to_dt(docs_from_start_to_first[-1])}")
 
-            print(f"middle 0: {doc_to_dt(docs[0])}")
-            print(f"middle -1: {doc_to_dt(docs[-1])}")
+            # print(f"middle 0: {doc_to_dt(docs[0])}")
+            # print(f"middle -1: {doc_to_dt(docs[-1])}")
 
             # 2
             diff_seconds_from_last_to_end = np.floor((end_dt - last_dt).seconds)
@@ -196,17 +198,17 @@ def load_q_and_dt_for_period(
                     np.arange(offset + 1, offset + diff_seconds_from_last_to_end + 1, 1)
                 )  # FIXME: +1しなくても良い方を探す
 
-            if docs_from_last_to_end.size > 0:
-                print(f"right 0: {doc_to_dt(docs_from_last_to_end[0])}")
-                print(f"right -1: {doc_to_dt(docs_from_last_to_end[-1])}")
+            # if docs_from_last_to_end.size > 0:
+            # print(f"right 0: {doc_to_dt(docs_from_last_to_end[0])}")
+            # print(f"right -1: {doc_to_dt(docs_from_last_to_end[-1])}")
 
             docs = np.append(docs_from_start_to_first, docs)
             docs = np.append(docs, docs_from_last_to_end)
 
-            print(f"doc_to_dt(docs[0]): {doc_to_dt(docs[0])}")
-            print(f"doc_to_dt(docs[-1]): {doc_to_dt(docs[-1])}")
-            print(f"diff_seconds_from_last_to_end: {diff_seconds_from_last_to_end}")
-            print(f"offset: {offset}", end="\n\n")
+            # print(f"doc_to_dt(docs[0]): {doc_to_dt(docs[0])}")
+            # print(f"doc_to_dt(docs[-1]): {doc_to_dt(docs[-1])}")
+            # print(f"diff_seconds_from_last_to_end: {diff_seconds_from_last_to_end}")
+            # print(f"offset: {offset}", end="\n\n")
 
         # # エラーを握りつぶしてOKで、かつ既に補完済みのデータをダンプしたファイルが存在する場合は、それを読み込む
         # if no_missing_data_err and is_exist_complemented_file:
@@ -242,7 +244,7 @@ def load_q_and_dt_for_period(
         # TODO: 時系列データが正しく並んでいるかテストする
         total_seconds_list = np.vectorize(
             lambda doc: (
-                isoformat2dt(extractFieldsFromDoc(doc, "JPtime")) - epoch_time
+                isoformat2dt(extractFieldsFromDoc(doc, "JPtime")) - EPOCH_TIME
             ).total_seconds()
         )(docs)
         source_indexes = np.argsort(total_seconds_list)

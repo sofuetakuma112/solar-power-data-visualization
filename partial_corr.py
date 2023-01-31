@@ -38,7 +38,6 @@ if __name__ == "__main__":
     dt_all, q_all = load_q_and_dt_for_period(from_dt, diff_days, True)
     dt_all, q_all = unify_deltas_between_dts_v2(dt_all, q_all)
 
-    # calced_q_all = np.vectorize(calc_q_kw_v2)(dt_all)
     calced_q_all = calc_qs_kw_v2(
         dt_all,
         latitude=33.82794,
