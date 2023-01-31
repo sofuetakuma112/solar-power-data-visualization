@@ -3,6 +3,8 @@ import datetime
 import pandas as pd
 import pvlib
 from pvlib import clearsky
+import requests
+import sqlite3
 
 # 単位はワット
 def calcQ(dt, lat_deg, lng_deg):
@@ -65,42 +67,88 @@ def calc_q_kw(dt, lng=33.82794, lat=132.75093):
     return max(calcQ(dt, lng, lat), 0) / 1000
 
 
-def calc_qs_kw_v2(dts, latitude, longitude, altitude, surface_tilt, surface_azimuth):
-    times = pd.DatetimeIndex(dts, tz="Asia/Tokyo")
+class Q:
+    def __init__(self):
+        dbname = "SOLAR.db"
+        self.conn = sqlite3.connect(dbname)
+        self.cur = self.conn.cursor()
 
-    solpos = pvlib.solarposition.get_solarposition(times, latitude, longitude)
+        self.cur.execute(
+            "CREATE TABLE IF NOT EXISTS elevations(id INTEGER PRIMARY KEY AUTOINCREMENT, latitude REAL, longitude REAL, elevation REAL)"
+        )
+        self.conn.commit()
 
-    apparent_zenith = solpos["apparent_zenith"]
-    azimuth = solpos["azimuth"]
-    airmass = pvlib.atmosphere.get_relative_airmass(apparent_zenith)
-    pressure = pvlib.atmosphere.alt2pres(altitude)
-    airmass = pvlib.atmosphere.get_absolute_airmass(airmass, pressure)
-    linke_turbidity = pvlib.clearsky.lookup_linke_turbidity(times, latitude, longitude)
-    dni_extra = pvlib.irradiance.get_extra_radiation(times)
+    def fetch_altitude(self, latitude, longitude):
+        # 既にDBにキャッシュ済みの組み合わせかチェック
+        self.cur.execute(
+            "SELECT * FROM elevations WHERE latitude = ? AND longitude = ?",
+            (latitude, longitude),
+        )
+        self.conn.commit()
+        result = self.cur.fetchone()
 
-    ineichen = clearsky.ineichen(
-        apparent_zenith, airmass, linke_turbidity, altitude, dni_extra
-    )
+        if result:
+            elevation = result[3]
+            return elevation
 
-    ghi = ineichen["ghi"]  # 全天日射量
-    dhi = ineichen["dhi"]  # 散乱日射量
-    dni = ineichen["dni"]  # 直達日射量
+        url = f"http://cyberjapandata2.gsi.go.jp/general/dem/scripts/getelevation.php?lon={longitude}&lat={latitude}&outtype=JSON"
+        resp = requests.get(url, timeout=10)
+        data = resp.json()
+        elevation = data["elevation"]
 
-    df_poa = pvlib.irradiance.get_total_irradiance(
-        surface_tilt,
-        surface_azimuth,
-        dni=dni,
-        ghi=ghi,
-        dhi=dhi,
-        dni_extra=dni_extra,
-        solar_zenith=apparent_zenith,
-        solar_azimuth=azimuth,
-        model="isotropic",
-    )
+        self.cur.execute(
+            "INSERT INTO elevations(latitude, longitude, elevation) values(?, ?, ?);",
+            (latitude, longitude, elevation),
+        )
+        self.conn.commit()
 
-    goa_global = df_poa.loc[:, ["poa_global"]].to_numpy().flatten() / 1000
+        return elevation
 
-    return goa_global
+    def calc_qs_kw_v2(
+        self, dts, latitude, longitude, surface_tilt, surface_azimuth, model
+    ):
+        times = pd.DatetimeIndex(dts, tz="Asia/Tokyo")
+
+        solpos = pvlib.solarposition.get_solarposition(times, latitude, longitude)
+
+        apparent_zenith = solpos["apparent_zenith"]
+        azimuth = solpos["azimuth"]
+        airmass = pvlib.atmosphere.get_relative_airmass(apparent_zenith)
+
+        # altitude = pvlib.location.lookup_altitude(latitude, longitude)
+        altitude = self.fetch_altitude(latitude, longitude)
+        pressure = pvlib.atmosphere.alt2pres(altitude)
+        airmass = pvlib.atmosphere.get_absolute_airmass(airmass, pressure)
+        linke_turbidity = pvlib.clearsky.lookup_linke_turbidity(
+            times, latitude, longitude
+        )
+        dni_extra = pvlib.irradiance.get_extra_radiation(times)
+
+        print(f"altitude: {altitude}")
+
+        ineichen = clearsky.ineichen(
+            apparent_zenith, airmass, linke_turbidity, altitude, dni_extra
+        )
+
+        ghi = ineichen["ghi"]  # 全天日射量
+        dhi = ineichen["dhi"]  # 散乱日射量
+        dni = ineichen["dni"]  # 直達日射量
+
+        df_poa = pvlib.irradiance.get_total_irradiance(
+            surface_tilt,
+            surface_azimuth,
+            dni=dni,
+            ghi=ghi,
+            dhi=dhi,
+            dni_extra=dni_extra,
+            solar_zenith=apparent_zenith,
+            solar_azimuth=azimuth,
+            model=model,
+        )
+
+        goa_global = df_poa.loc[:, ["poa_global"]].to_numpy().flatten() / 1000
+
+        return goa_global
 
 
 # def calc_q_kw_v2(dt, lng=33.82794, lat=132.75093):
@@ -108,4 +156,7 @@ def calc_qs_kw_v2(dts, latitude, longitude, altitude, surface_tilt, surface_azim
 
 
 if __name__ == "__main__":
-    print(calcQ(datetime.datetime(2022, 5, 17, 17, 53), 33.82794, 132.75093))
+    # print(calcQ(datetime.datetime(2022, 5, 17, 17, 53), 33.82794, 132.75093))
+    q = Q()
+    res = q.fetch_altitude(33.82794, 132.75093)
+    print(res)

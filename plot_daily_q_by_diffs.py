@@ -39,6 +39,7 @@ if __name__ == "__main__":
             altitude=25.720,
             surface_tilt=22,
             surface_azimuth=185,
+            model="isotropic",
         )
 
         q_all_mean0 = q_all - q_all.mean()
