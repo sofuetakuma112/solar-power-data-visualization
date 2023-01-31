@@ -5,7 +5,7 @@ from utils.es.load import load_q_and_dt_for_period
 import os
 import argparse
 import numpy as np
-from utils.q import calc_q_kw
+from utils.q import calc_qs_kw_v2
 from utils.correlogram import unify_deltas_between_dts_v2
 from utils.colors import colorlist
 import matplotlib.dates as mdates
@@ -38,7 +38,15 @@ if __name__ == "__main__":
     dt_all, q_all = load_q_and_dt_for_period(from_dt, diff_days, True)
     dt_all, q_all = unify_deltas_between_dts_v2(dt_all, q_all)
 
-    calced_q_all = np.vectorize(calc_q_kw)(dt_all)
+    # calced_q_all = np.vectorize(calc_q_kw_v2)(dt_all)
+    calced_q_all = calc_qs_kw_v2(
+        dt_all,
+        latitude=33.82794,
+        longitude=132.75093,
+        altitude=25.720,
+        surface_tilt=22,
+        surface_azimuth=185,
+    )
 
     axes = [plt.subplots()[1] for _ in range(1)]
 

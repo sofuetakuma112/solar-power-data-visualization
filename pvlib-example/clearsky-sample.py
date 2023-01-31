@@ -37,6 +37,7 @@ df_poa = pvlib.irradiance.get_total_irradiance(
     dni=dni,
     ghi=ghi,
     dhi=dhi,
+    dni_extra=dni_extra,
     solar_zenith=apparent_zenith,
     solar_azimuth=azimuth,
     model="isotropic",

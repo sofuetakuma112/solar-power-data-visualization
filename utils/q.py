@@ -1,6 +1,8 @@
 import numpy as np
 import datetime
+import pandas as pd
 import pvlib
+from pvlib import clearsky
 
 # 単位はワット
 def calcQ(dt, lat_deg, lng_deg):
@@ -63,59 +65,47 @@ def calc_q_kw(dt, lng=33.82794, lat=132.75093):
     return max(calcQ(dt, lng, lat), 0) / 1000
 
 
-def calc_q_v2(date, latitude, longitude):
-    # 太陽高度角、方位角を計算
-    solpos = pvlib.solarposition.get_solarposition(date, latitude, longitude)
+def calc_qs_kw_v2(dts, latitude, longitude, altitude, surface_tilt, surface_azimuth):
+    times = pd.DatetimeIndex(dts, tz="Asia/Tokyo")
 
-    print(solpos)
+    solpos = pvlib.solarposition.get_solarposition(times, latitude, longitude)
 
-    # 地上に到達する日射量を計算
+    apparent_zenith = solpos["apparent_zenith"]
+    azimuth = solpos["azimuth"]
+    airmass = pvlib.atmosphere.get_relative_airmass(apparent_zenith)
+    pressure = pvlib.atmosphere.alt2pres(altitude)
+    airmass = pvlib.atmosphere.get_absolute_airmass(airmass, pressure)
+    linke_turbidity = pvlib.clearsky.lookup_linke_turbidity(times, latitude, longitude)
+    dni_extra = pvlib.irradiance.get_extra_radiation(times)
 
-    # pvlib.irradiance.aoiの引数
-    # surface_tilt : 数値
-    #     パネルの水平方向からの傾き。
-    # surface_azimuth : 数値
-    #     北からのパネルの方位角。
-    # solar_zenith : 数値
-    #     太陽天頂角。
-    # solar_azimuth : 数値
-    #     太陽の方位角。
-    aoi = pvlib.irradiance.aoi(0, 0, solpos["apparent_zenith"], solpos["azimuth"])
-    dni_extra = pvlib.irradiance.get_extra_radiation(date)
-
-    # 太陽高度角、方位角、日射量指数から全球水平面放射照度を計算
-    total_irrad = pvlib.irradiance.get_total_irradiance(
-        0,
-        0,
-        solpos["apparent_zenith"],
-        solpos["azimuth"],
-        airmass=pvlib.atmosphere.relativeairmass(solpos["apparent_zenith"]),
-        dni=pvlib.irradiance.extraradiation(date),
-        ghi=None,
-        dhi=None,
-        dni_extra=None,
-        model="haydavies",
+    ineichen = clearsky.ineichen(
+        apparent_zenith, airmass, linke_turbidity, altitude, dni_extra
     )
 
-    # 全球水平面放射照度を表示
-    print(total_irrad)
-    dni = pvlib.irradiance.dni(aoi, dni_extra, solpos["zenith"])
+    ghi = ineichen["ghi"]  # 全天日射量
+    dhi = ineichen["dhi"]  # 散乱日射量
+    dni = ineichen["dni"]  # 直達日射量
 
-    print(f"aoi: {aoi.iloc[-1]}")
+    df_poa = pvlib.irradiance.get_total_irradiance(
+        surface_tilt,
+        surface_azimuth,
+        dni=dni,
+        ghi=ghi,
+        dhi=dhi,
+        dni_extra=dni_extra,
+        solar_zenith=apparent_zenith,
+        solar_azimuth=azimuth,
+        model="isotropic",
+    )
 
-    # # 太陽高度角、方位角から直達日射量を計算
-    # print(f"solpos['zenith']: {type(solpos['zenith'])}")
-    # dni = pvlib.irradiance.dni(solpos['apparent_zenith'], solpos['azimuth'], solpos["zenith"])
+    goa_global = df_poa.loc[:, ["poa_global"]].to_numpy().flatten() / 1000
 
-    return dni
+    return goa_global
 
 
-def calc_q_kw_v2(dt, lng=33.82794, lat=132.75093):
-    return max(calc_q_v2(dt, lng, lat), 0) / 1000
+# def calc_q_kw_v2(dt, lng=33.82794, lat=132.75093):
+#     return max(calc_q_v2(dt, lng, lat), 0) / 1000
 
 
 if __name__ == "__main__":
     print(calcQ(datetime.datetime(2022, 5, 17, 17, 53), 33.82794, 132.75093))
-    print(
-        f"dni: {calc_q_v2(datetime.datetime(2022, 5, 17, 17, 53), 33.82794, 132.75093)}"
-    )
