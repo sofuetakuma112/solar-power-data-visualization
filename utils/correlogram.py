@@ -125,9 +125,13 @@ def unify_deltas_between_dts_v2(dts, qs):
     補完した日時データとそれに対応した日射量のリストを取得する
     """
     # 指定した間隔で補完
-    start_date = dts[0]  # YYYY-mm-dd:00:00:00であることが前提
+    first_date = dts[0]
+    offset_date = datetime.datetime(
+        int(first_date.year), int(first_date.month), int(first_date.day)
+    )
+
     equally_spaced_dt = np.vectorize(
-        lambda s: start_date + datetime.timedelta(seconds=float(s))
+        lambda s: offset_date + datetime.timedelta(seconds=float(s))
     )(np.arange(0, 60 * 60 * 24, 1))
     completed_q = np.interp(
         np.vectorize(get_total_seconds)(equally_spaced_dt),
