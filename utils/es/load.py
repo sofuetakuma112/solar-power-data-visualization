@@ -100,7 +100,6 @@ EPOCH_TIME = datetime.datetime(1970, 1, 1)
 def load_q_and_dt_for_period(
     start_dt,
     span,
-    no_missing_data_err=False,  # Trueの場合、指定した期間にデータが取得できていない日があっても0埋めしてエラーを握りつぶす
 ):
     q_all = np.array([])
     dt_all = np.array([])
@@ -108,7 +107,8 @@ def load_q_and_dt_for_period(
 
     span_float, span_int = math.modf(span)
     is_first_loop = True
-    for _ in range(np.int64(np.ceil(span))):
+
+    for _ in range(int(np.ceil(span))):
         fetch.fetch_docs_by_datetime(dt_crr_fetching)
 
         json_file_path = get_json_file_path_by_datetime(dt_crr_fetching)
@@ -210,37 +210,6 @@ def load_q_and_dt_for_period(
             # print(f"diff_seconds_from_last_to_end: {diff_seconds_from_last_to_end}")
             # print(f"offset: {offset}", end="\n\n")
 
-        # # エラーを握りつぶしてOKで、かつ既に補完済みのデータをダンプしたファイルが存在する場合は、それを読み込む
-        # if no_missing_data_err and is_exist_complemented_file:
-        #     with open(complemented_file_path, "rb") as f:
-        #         docs = pickle.load(f)
-        # else:
-        #     raw_file_path = get_pickle_file_path_by_datetime(dt_crr_fetching, "raw")
-        #     with open(raw_file_path, "rb") as f:
-        #         docs = pickle.load(f)
-
-        #     if len(docs) < 64000:
-        #         if no_missing_data_err:
-        #             dt_crr_fetching = (
-        #                 dt_crr_fetching
-        #                 if len(docs) == 0
-        #                 else util.isoformat2dt(docs[-1]["_source"]["JPtime"])
-        #             )
-        #             docs = complement_docs(docs, dt_crr_fetching)
-        #         else:
-        #             return [NotEnoughDocErr(), None]
-
-        # dt_crr_fetching = start_dt
-
-        # この時点で、補完済み or 補完する必要のないデータのみ
-        # 補完済みデータとしてダンプしておく
-        # dir = "./pickles/complemented"
-        # if not os.path.exists(dir):
-        #     os.makedirs(dir)
-        # if not is_exist_complemented_file:
-        #     with open(complemented_file_path, "wb") as f:
-        #         pickle.dump(docs, f)
-
         # TODO: 時系列データが正しく並んでいるかテストする
         total_seconds_list = np.vectorize(
             lambda doc: (
@@ -256,19 +225,19 @@ def load_q_and_dt_for_period(
         jptimes = np.vectorize(lambda doc: extractFieldsFromDoc(doc, "JPtime"))(docs)
         dts_per_day = np.vectorize(isoformat2dt)(jptimes)
 
-        qs_per_day = extractFieldsFromDocs(docs, "solarIrradiance(kw/m^2)")
+        qs_per_day = np.array(extractFieldsFromDocs(docs, "solarIrradiance(kw/m^2)"))
 
         if is_first_loop:
-            lastDt = (
-                dts_per_day[0]  # dts_per_day[0]から{fixedDaysLen}日後をlastDtとする
+            span_last_dt = (  # 取得する期間列の末尾の日時
+                dts_per_day[0]  # dts_per_day[0]から{fixedDaysLen}日後をlast_dtとする
                 + datetime.timedelta(days=span_int)
                 + datetime.timedelta(hours=span_float * 24)
             )
             is_first_loop = False
 
-        if np.any(dts_per_day > lastDt):
-            # dts_per_dayの並びの中にlastDtが存在する
-            mask = dts_per_day <= lastDt
+        if np.any(dts_per_day > span_last_dt):
+            # dts_per_dayの並びの中にlast_dtが存在する
+            mask = dts_per_day <= span_last_dt
             dts_under_last_dt_per_day = dts_per_day[mask]
             qs_under_last_dt_per_day = qs_per_day[mask]
 
