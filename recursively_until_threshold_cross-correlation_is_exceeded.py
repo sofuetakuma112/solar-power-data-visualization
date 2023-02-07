@@ -3,9 +3,11 @@ import os
 import numpy as np
 import japanize_matplotlib
 import math
+
+import pandas as pd
 from utils.correlogram import (
     NotEnoughLengthErr,
-    unify_deltas_between_dts,
+    unify_deltas_between_dts_v2,
     calc_dts_for_q_calc,
     slides_q_calc_for_corr,
     calc_ratios,
@@ -237,14 +239,37 @@ class CorrSearch:
         ) = load_q_and_dt_for_period(  # 計算値をスライドさせるため、固定側は動的側より長いリスト長が必要となる
             from_dt, self.fixed_days_len
         )  # 与えた期間の日射量と計測日時をファイルから読み込む(dtでソート済み)
-        dt_all, q_all = unify_deltas_between_dts(dt_all, q_all)  # 時系列データのデルタを均一にする
+        dt_all, q_all = unify_deltas_between_dts_v2(dt_all, q_all)  # 時系列データのデルタを均一にする
 
         print(f"dt_all[-1]: {dt_all[-1]}")
 
-        # TODO: top_nを使って上位n日のみを残すフィルタリング処理を実装する
+        # 日毎に計算値と実測値の誤差を計算する
+        diffs = np.array([])
+        dates = np.array([])
+
+        def aggr_diffs_on_daily(group):
+            dts_per_day = np.array(df.index.to_pydatetime(), dtype=np.datetime64)
+            qs_per_day = group["q"].to_numpy()
+            dt_and_q_list_per_day = np.column_stack([dts_per_day, qs_per_day])
+
+            diff = calc_daily_diff(dt_and_q_list_per_day)
+            date = group["dt"][0]
+
+            diffs = np.append(diffs, diff)
+            dates = np.append(dates, date)
+
+        # top_nを使って上位n日のみを残すフィルタリング処理
         # 日毎に計算値と実測値の差分の総和を求める
-        time_sta = time.time()
         if self.top_n != INIT_TOP_N:
+            df = pd.DataFrame(
+                data=np.column_stack([dt_all, q_all]), columns=["dt", "q"]
+            )
+            df.set_index("dt", inplace=True)
+
+            df.groupby(pd.Grouper(freq="1D")).apply(aggr_diffs_on_daily)
+
+            print(f"np.column_stack([dt, diff]): {np.column_stack([dates, diffs])}")
+
             dt_and_q_list = np.array(
                 list(
                     zip(
@@ -259,65 +284,57 @@ class CorrSearch:
             unique_ymds = np.unique(ymds)
 
             # マスクを生成する関数を返す
+            # カリー化
             def set_unique_ymd(unique_ymd):
                 return np.vectorize(lambda ymd: ymd == unique_ymd)
 
-            def calc_daily_diff(create_mask_func):
-                def _calc_daily_diff(dt_and_q_list_per_day):
-                    SHOULD_MATCH_MAX_VALUE = True
+            def calc_daily_diff(dt_and_q_list_per_day):
+                SHOULD_MATCH_MAX_VALUE = True
+                if SHOULD_MATCH_MAX_VALUE:
 
-                    if SHOULD_MATCH_MAX_VALUE:
+                    def _calc_q_kw(l):
+                        dt, _, _ = l
+                        q_calc = calc_q_kw(dt)
+                        return q_calc  # ユークリッド距離
 
-                        def _calc_q_kw(l):
-                            dt, _, _ = l
-                            q_calc = calc_q_kw(dt)
-                            return q_calc  # ユークリッド距離
+                    qs_calc = np.apply_along_axis(_calc_q_kw, 1, dt_and_q_list_per_day)
 
-                        q_calc_ndarray = np.apply_along_axis(
-                            _calc_q_kw, 1, dt_and_q_list_per_day
-                        )
+                    q_calc_max = np.max(qs_calc)
 
-                        q_calc_max = np.max(q_calc_ndarray)
+                    qs = dt_and_q_list_per_day[:, 1]
+                    q_max = np.max(qs)
 
-                        q_ndarray = dt_and_q_list_per_day[:, 1]
-                        q_max = np.max(q_ndarray)
+                    scaled_qs_calc = qs_calc
 
-                        scaled_q_calc_ndarray = q_calc_ndarray
+                    # if q_max == 0.0:
+                    #     scaled_qs_calc = qs_calc
+                    # else:
+                    #     scaled_qs_calc = qs_calc * (q_max / q_calc_max)
 
-                        # if q_max == 0.0:
-                        #     scaled_q_calc_ndarray = q_calc_ndarray
-                        # else:
-                        #     scaled_q_calc_ndarray = q_calc_ndarray * (q_max / q_calc_max)
+                    diff_with_scaled_q_calc_per_day = np.square(scaled_qs_calc - qs)
+                    diff_per_day = diff_with_scaled_q_calc_per_day
+                else:
 
-                        diff_with_scaled_q_calc_per_day = np.square(
-                            scaled_q_calc_ndarray - q_ndarray
-                        )
-                        diff_per_day = diff_with_scaled_q_calc_per_day
-                    else:
+                    def calc_diff(l):
+                        dt, q, _ = l
+                        q_calc = calc_q_kw(dt)
+                        return np.square(q_calc - q)  # ユークリッド距離
 
-                        def calc_diff(l):
-                            dt, q, _ = l
-                            q_calc = calc_q_kw(dt)
-                            return np.square(q_calc - q)  # ユークリッド距離
-
-                        diff_per_day = np.apply_along_axis(
-                            calc_diff, 1, dt_and_q_list_per_day
-                        )
-
-                    diff_square_sum_sqrt = np.sqrt(
-                        np.sum(diff_per_day) / len(diff_per_day)
+                    diff_per_day = np.apply_along_axis(
+                        calc_diff, 1, dt_and_q_list_per_day
                     )
 
-                    return diff_square_sum_sqrt
+                diff_square_sum_sqrt = np.sqrt(np.sum(diff_per_day) / len(diff_per_day))
 
-                masked = dt_and_q_list[create_mask_func(ymds)]
-                return _calc_daily_diff(masked)  # 戻り値はスカラ??
+                return diff_square_sum_sqrt  # 戻り値はスカラ??
 
+            # dt_all, q_allから特定のymdのものだけを抽出する
             def get_ymd(create_mask_func):
                 masked = dt_and_q_list[create_mask_func(ymds)]
-                return masked[0][-1]
+                return masked[0][-1]  # dt_allの末尾？
 
             # マスクを生成する関数のndarray
+            # 特定のymdに一致するものをymdsから抽出する関数のndarray
             create_mask_funcs = np.vectorize(set_unique_ymd)(unique_ymds)
 
             # FIXME: マスクの作成が2重で走ってるからリファクタする
@@ -326,6 +343,7 @@ class CorrSearch:
                 create_mask_funcs
             )  # (単位時間あたりの計算値と実測値の差, YYYY/MM/DD)
 
+            # 日毎の計算値と実測値のdiffを2次元配列で表現する
             diff_euclid_distances = np.concatenate(
                 [diffs.reshape([-1, 1]), dates.reshape([-1, 1])], 1
             )
@@ -355,8 +373,6 @@ class CorrSearch:
 
             dt_all = filtered_dt_and_q_list[:, 0]
             q_all = filtered_dt_and_q_list[:, 1]
-        time_end = time.time()
-        print(f"概形の良い山を見つけるのにかかった時間: {time_end- time_sta}")
 
         # (実測値 / 理論値)を各日時ごとに計算して、ソートして上から何割かだけの日射量を採用して残りは0にする
         ratios = calc_ratios(dt_all, q_all)
