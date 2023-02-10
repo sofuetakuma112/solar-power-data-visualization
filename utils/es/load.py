@@ -136,7 +136,7 @@ def load_q_and_dt_for_period(
                 lambda second_from_start: create_doc_dict(
                     date + datetime.timedelta(seconds=int(second_from_start)), 0
                 )
-            )(np.arange(0, 64000, 1))
+            )(np.arange(0, 86400, 1))
         else:
             first_dt = isoformat2dt(extractFieldsFromDoc(docs[0], "JPtime"))
             last_dt = isoformat2dt(extractFieldsFromDoc(docs[-1], "JPtime"))
