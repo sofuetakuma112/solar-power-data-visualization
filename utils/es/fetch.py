@@ -66,7 +66,7 @@ def fetch_docs_by_datetime(dt):
         s_size = len(data["hits"]["hits"])
         result.extend(data["hits"]["hits"])
 
-    with open(file_path, "wb") as f:
+    with open(file_path, "w") as f:
         json.dump(result, f, ensure_ascii=False, indent=4)
 
     es.close()  # 内部接続を閉じる
