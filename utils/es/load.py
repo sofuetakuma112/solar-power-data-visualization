@@ -19,7 +19,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import japanize_matplotlib
 
-import time
+import logging
 
 
 class NotEnoughDocErr:
@@ -141,8 +141,8 @@ def load_q_and_dt_for_period(
             first_dt = isoformat2dt(extractFieldsFromDoc(docs[0], "JPtime"))
             last_dt = isoformat2dt(extractFieldsFromDoc(docs[-1], "JPtime"))
 
-            # print(f"first_dt: {first_dt}")
-            # print(f"last_dt: {last_dt}")
+            logging.debug(f"first_dt: {first_dt}")
+            logging.debug(f"last_dt: {last_dt}")
 
             start_dt = datetime.datetime(
                 first_dt.year, first_dt.month, first_dt.day, 0, 0, 0
@@ -151,12 +151,12 @@ def load_q_and_dt_for_period(
                 last_dt.year, last_dt.month, last_dt.day, 0, 0, 0
             ) + datetime.timedelta(days=1)
 
-            # print(f"start_dt: {start_dt}")
-            # print(f"end_dt: {end_dt}")
+            logging.debug(f"start_dt: {start_dt}")
+            logging.debug(f"end_dt: {end_dt}")
 
             diff_seconds_from_start = np.floor((first_dt - start_dt).seconds)
 
-            # print(f"diff_seconds_from_start: {diff_seconds_from_start}")
+            logging.debug(f"diff_seconds_from_start: {diff_seconds_from_start}")
 
             if diff_seconds_from_start == 0:
                 # docs_from_start_to_firstの長さは0
@@ -168,12 +168,12 @@ def load_q_and_dt_for_period(
                     )
                 )(np.arange(0, diff_seconds_from_start, 1))
 
-            # if docs_from_start_to_first.size > 0:
-            # print(f"left 0: {doc_to_dt(docs_from_start_to_first[0])}")
-            # print(f"left -1: {doc_to_dt(docs_from_start_to_first[-1])}")
+            if docs_from_start_to_first.size > 0:
+                logging.debug(f"left 0: {doc_to_dt(docs_from_start_to_first[0])}")
+                logging.debug(f"left -1: {doc_to_dt(docs_from_start_to_first[-1])}")
 
-            # print(f"middle 0: {doc_to_dt(docs[0])}")
-            # print(f"middle -1: {doc_to_dt(docs[-1])}")
+                logging.debug(f"middle 0: {doc_to_dt(docs[0])}")
+                logging.debug(f"middle -1: {doc_to_dt(docs[-1])}")
 
             # 2
             diff_seconds_from_last_to_end = np.floor((end_dt - last_dt).seconds)
@@ -198,17 +198,19 @@ def load_q_and_dt_for_period(
                     np.arange(offset + 1, offset + diff_seconds_from_last_to_end + 1, 1)
                 )  # FIXME: +1しなくても良い方を探す
 
-            # if docs_from_last_to_end.size > 0:
-            # print(f"right 0: {doc_to_dt(docs_from_last_to_end[0])}")
-            # print(f"right -1: {doc_to_dt(docs_from_last_to_end[-1])}")
+            if docs_from_last_to_end.size > 0:
+                logging.debug(f"right 0: {doc_to_dt(docs_from_last_to_end[0])}")
+                logging.debug(f"right -1: {doc_to_dt(docs_from_last_to_end[-1])}")
 
             docs = np.append(docs_from_start_to_first, docs)
             docs = np.append(docs, docs_from_last_to_end)
 
-            # print(f"doc_to_dt(docs[0]): {doc_to_dt(docs[0])}")
-            # print(f"doc_to_dt(docs[-1]): {doc_to_dt(docs[-1])}")
-            # print(f"diff_seconds_from_last_to_end: {diff_seconds_from_last_to_end}")
-            # print(f"offset: {offset}", end="\n\n")
+            logging.debug(f"doc_to_dt(docs[0]): {doc_to_dt(docs[0])}")
+            logging.debug(f"doc_to_dt(docs[-1]): {doc_to_dt(docs[-1])}")
+            logging.debug(
+                f"diff_seconds_from_last_to_end: {diff_seconds_from_last_to_end}"
+            )
+            logging.debug(f"offset: {offset}", end="\n\n")
 
         # TODO: 時系列データが正しく並んでいるかテストする
         total_seconds_list = np.vectorize(
@@ -234,7 +236,7 @@ def load_q_and_dt_for_period(
                 + datetime.timedelta(hours=span_float * 24)
             )
             is_first_loop = False
-
+        
         if np.any(dts_per_day > span_last_dt):
             # dts_per_dayの並びの中にlast_dtが存在する
             mask = dts_per_day <= span_last_dt
@@ -243,6 +245,7 @@ def load_q_and_dt_for_period(
 
             q_all = np.append(q_all, qs_under_last_dt_per_day)
             dt_all = np.append(dt_all, dts_under_last_dt_per_day)
+
             break
 
         q_all = np.append(q_all, qs_per_day)
