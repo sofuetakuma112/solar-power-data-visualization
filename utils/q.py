@@ -124,8 +124,6 @@ class Q:
         )
         dni_extra = pvlib.irradiance.get_extra_radiation(times)
 
-        print(f"altitude: {altitude}")
-
         ineichen = clearsky.ineichen(
             apparent_zenith, airmass, linke_turbidity, altitude, dni_extra
         )

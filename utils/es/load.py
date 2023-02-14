@@ -236,7 +236,7 @@ def load_q_and_dt_for_period(
                 + datetime.timedelta(hours=span_float * 24)
             )
             is_first_loop = False
-        
+
         if np.any(dts_per_day > span_last_dt):
             # dts_per_dayの並びの中にlast_dtが存在する
             mask = dts_per_day <= span_last_dt
