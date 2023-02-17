@@ -75,10 +75,10 @@ if __name__ == "__main__":
     )  # 'isotropic', 'klucher', 'haydavies', 'reindl', 'king', 'perez'
     parser.add_argument("-surface_tilt", type=int, default=22)
     parser.add_argument("-surface_azimuth", type=float, default=185.0)
-    parser.add_argument("-h_rac", action="store_true") # 実測値と計算値
-    parser.add_argument("-h_racs", action="store_true") # 実測値と計算値（ずらし）
-    parser.add_argument("-h_rpacs", action="store_true") # 実測値（スプライン）と計算値（ずらし）
-    parser.add_argument("-h_cacs", action="store_true") # 計算値と計算値（ずらし）
+    parser.add_argument("-h_rac", action="store_true")  # 実測値と計算値
+    parser.add_argument("-h_racs", action="store_true")  # 実測値と計算値（ずらし）
+    parser.add_argument("-h_rpacs", action="store_true")  # 実測値（スプライン）と計算値（ずらし）
+    parser.add_argument("-h_cacs", action="store_true")  # 計算値と計算値（ずらし）
     args = parser.parse_args()
 
     year, month, date = args.dt.split("/")
@@ -250,15 +250,12 @@ if __name__ == "__main__":
     if total_figure_count == 0:
         exit()
 
-    # 8, 6, 4, 2のケースがある
     rows = 2
     columns = int(total_figure_count / 2)
 
     if rows > columns:
         # rowsとcolumsをひっくり返す
         rows, columns = columns, rows
-
-    print(f"rows: {rows} columns: {columns}")
 
     fig, axes = plt.subplots(rows, columns)
     fig.set_constrained_layout(True)
@@ -268,6 +265,8 @@ if __name__ == "__main__":
 
     crr_row_idx = 0
     crr_column_idx = 0
+
+    span = f"{mask_from.strftime('%Y-%m-%d %H:%M:%S')}〜{mask_to.strftime('%Y-%m-%d %H:%M:%S')}"
 
     if not args.h_rac:
         # 実測値と計算値
@@ -285,7 +284,7 @@ if __name__ == "__main__":
             color=colorlist[1],
         )
         axes[crr_row_idx, crr_column_idx].set_title(
-            f"実測値と計算値\nずれ時間: {estimated_delay_with_real_and_calc}[s]"
+            f"実測値と計算値\nずれ時間: {estimated_delay_with_real_and_calc}[s]\n{span}"
         )
         axes[crr_row_idx, crr_column_idx].set_xlabel("時刻")
         axes[crr_row_idx, crr_column_idx].set_ylabel("日射量[kW/m^2]")
@@ -314,7 +313,7 @@ if __name__ == "__main__":
             color=colorlist[1],
         )
         axes[crr_row_idx, crr_column_idx].set_title(
-            f"実測値と計算値（{args.slide_seconds}[s]{advance_or_delay(args.slide_seconds)}）\nずれ時間: {estimated_delay_with_real_and_calc_slided}[s]"
+            f"実測値と計算値（{args.slide_seconds}[s]{advance_or_delay(args.slide_seconds)}）\nずれ時間: {estimated_delay_with_real_and_calc_slided}[s]\n{span}"
         )
         axes[crr_row_idx, crr_column_idx].set_xlabel("時刻")
         axes[crr_row_idx, crr_column_idx].set_ylabel("日射量[kW/m^2]")
@@ -343,7 +342,7 @@ if __name__ == "__main__":
             color=colorlist[1],
         )
         axes[crr_row_idx, crr_column_idx].set_title(
-            f"実測値（スプライン）と計算値（{args.slide_seconds}[s]{advance_or_delay(args.slide_seconds)}）\nずれ時間: {estimated_delay_with_real_spline_and_calc_slided}[s]"
+            f"実測値（スプライン）と計算値（{args.slide_seconds}[s]{advance_or_delay(args.slide_seconds)}）\nずれ時間: {estimated_delay_with_real_spline_and_calc_slided}[s]\n{span}"
         )
         axes[crr_row_idx, crr_column_idx].set_xlabel("時刻")
         axes[crr_row_idx, crr_column_idx].set_ylabel("日射量[kW/m^2]")
@@ -379,7 +378,7 @@ if __name__ == "__main__":
         #     color=colorlist[2],
         # )
         axes[crr_row_idx, crr_column_idx].set_title(
-            f"計算値と計算値（{args.slide_seconds}[s]{advance_or_delay(args.slide_seconds)}）\nずれ時間: {estimated_delay_with_calc_and_calc_slided}[s]"
+            f"計算値と計算値（{args.slide_seconds}[s]{advance_or_delay(args.slide_seconds)}）\nずれ時間: {estimated_delay_with_calc_and_calc_slided}[s]\n{span}"
         )
         axes[crr_row_idx, crr_column_idx].set_xlabel("時刻")
         axes[crr_row_idx, crr_column_idx].set_ylabel("日射量[kW/m^2]")
