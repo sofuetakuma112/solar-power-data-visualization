@@ -2,18 +2,42 @@ import datetime
 import matplotlib.pyplot as plt
 import japanize_matplotlib
 from utils.es.load import load_q_and_dt_for_period
-import os
 import argparse
 import numpy as np
-from utils.q import Q, calc_q_kw
+from utils.q import Q
 from utils.correlogram import unify_deltas_between_dts_v2
 from utils.colors import colorlist
 import matplotlib.dates as mdates
+from scipy import interpolate
+
+from utils.spline_model import get_natural_cubic_spline_model
 
 
 def calc_delay(a, b):
     corr = np.correlate(a, b, "full")
     return [corr, corr.argmax() - (len(b) - 1)]
+
+
+def advance_or_delay(seconds):
+    if np.sign(seconds) == 1:
+        return "進めている"
+    elif np.sign(seconds) == -1:
+        return "遅らせている"
+    else:
+        return ""
+
+
+def min0_max1(data):
+    # 最小値と最大値を計算
+    min_value = np.min(data)
+    max_value = np.max(data)
+
+    # 最小0最大1に変換
+    return (data - min_value) / (max_value - min_value)
+
+
+def normalize(data):
+    return (data - np.mean(data)) / np.std(data)
 
 
 def correlate_full(x, y):
@@ -26,13 +50,21 @@ def correlate_full(x, y):
     return result
 
 
-# > python3 partial_corr.py -dt 2022/09/30
+# > python3 partial_corr.py -dt 2022/04/08 -slide_seconds 1000 -mask_from 07:20 -mask_to 17:10
+# > python3 partial_corr.py -dt 2022/04/08 -slide_seconds 10
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-dt", type=str)  # グラフ描画したい日付のリスト
-    parser.add_argument("-slide_seconds", type=int)
+    parser.add_argument("-slide_seconds", type=int, default=0)
     parser.add_argument("-mask_from", type=str, default="00:00")
     parser.add_argument("-mask_to", type=str, default="24:00")
+    parser.add_argument("-masking_strategy", type=str, default="drop")
+    parser.add_argument("-normalize", action="store_true")
+    parser.add_argument(
+        "-model", type=str, default="isotropic"
+    )  # 'isotropic', 'klucher', 'haydavies', 'reindl', 'king', 'perez'
+    parser.add_argument("-surface_tilt", type=int, default=22)
+    parser.add_argument("-surface_azimuth", type=float, default=185.0)
     args = parser.parse_args()
 
     year, month, date = args.dt.split("/")
@@ -51,29 +83,32 @@ if __name__ == "__main__":
     if not np.allclose(sort_indexes, np.arange(0, dt_all.size, 1)):
         raise ValueError("dt_allが時系列順で並んでいない")
 
+    # 実測値を平滑化スプラインで滑らかにする
+    x = np.arange(0, dt_all.size, 1)
+    model = get_natural_cubic_spline_model(
+        x, q_all, minval=min(x), maxval=max(x), n_knots=18
+    )
+    q_all_spline = model.predict(x)
+
     q = Q()  # インスタンス作成時にDBへのコネクションを初期化
     calced_q_all = q.calc_qs_kw_v2(
         dt_all,
         latitude=33.82794,
         longitude=132.75093,
-        surface_tilt=22,
-        surface_azimuth=185,
-        model="isotropic",
+        surface_tilt=args.surface_tilt,
+        surface_azimuth=args.surface_azimuth,
+        model=args.model,
     )
 
     print(f"真のズレ時間: {args.slide_seconds}[s]")
     calced_q_all_slided = q.calc_qs_kw_v2(
-        # dt_all + datetime.timedelta(seconds=870),
         dt_all + datetime.timedelta(seconds=args.slide_seconds),
         latitude=33.82794,
         longitude=132.75093,
-        surface_tilt=22,
-        surface_azimuth=185,
+        surface_tilt=args.surface_tilt,
+        surface_azimuth=args.surface_azimuth,
         model="isotropic",
     )
-    # calced_q_all = np.vectorize(calc_q_kw)(dt_all)
-
-    axes = [plt.subplots()[1] for _ in range(6)]
 
     mask_from_hour, mask_from_minute = args.mask_from.split(":")
     mask_from = datetime.datetime(
@@ -105,39 +140,49 @@ if __name__ == "__main__":
             int(0),
         )
 
-    print(f"{mask_from} ~ {mask_to}")
-
-    # 08:30 ~
-    # mask = dt_all > datetime.datetime(int(year), int(month), int(date), 8, 30, 0)
-
-    # 08:30 ~ 15:30
-    # mask = (
-    #     (datetime.datetime(int(year), int(month), int(date), 15, 30, 0)) > dt_all
-    # ) & (dt_all > datetime.datetime(int(year), int(month), int(date), 8, 30, 0))
-
-    # 07:20 ~ 17:10
-    # mask = (
-    #     (datetime.datetime(int(year), int(month), int(date), 17, 10, 0)) > dt_all
-    # ) & (dt_all > datetime.datetime(int(year), int(month), int(date), 7, 20, 0))
+    print(f"{mask_from} 〜 {mask_to}")
 
     # 1日全て
     mask = (mask_from <= dt_all) & (dt_all < mask_to)
 
     # マスク処理
-    masked_q_all = q_all[mask]
-    masked_calc_q_all = calced_q_all[mask]
-    masked_calc_q_all_slided = calced_q_all_slided[mask]
+    if args.masking_strategy == "drop":
+        masked_q_all = q_all[mask]
+        masked_q_all_spline = q_all_spline[mask]
+        masked_calc_q_all = calced_q_all[mask]
+        masked_calc_q_all_slided = calced_q_all_slided[mask]
+
+        masked_dt_all = dt_all[mask]
+    elif args.masking_strategy == "replace":
+        inverted_mask = np.logical_not(mask)
+        np.putmask(
+            q_all_spline, inverted_mask, (q_all_spline * 0) + np.min(q_all_spline[mask])
+        )
+        np.putmask(q_all, inverted_mask, (q_all * 0) + np.min(q_all[mask]))
+        np.putmask(
+            calced_q_all, inverted_mask, (calced_q_all * 0) + np.min(calced_q_all[mask])
+        )
+        np.putmask(
+            calced_q_all_slided,
+            inverted_mask,
+            (calced_q_all_slided * 0) + np.min(calced_q_all_slided[mask]),
+        )
+
+        masked_q_all = q_all
+        masked_q_all_spline = q_all_spline
+        masked_calc_q_all = calced_q_all
+        masked_calc_q_all_slided = calced_q_all_slided
+
+        masked_dt_all = dt_all
+    else:
+        raise ValueError("masking_strategyの値が不正")
 
     # 標準化
-    # masked_q_all = (masked_q_all - np.mean(masked_q_all)) / np.std(masked_q_all)
-    # masked_calc_q_all = (masked_calc_q_all - np.mean(masked_calc_q_all)) / np.std(
-    #     masked_calc_q_all
-    # )
-    # masked_calc_q_all_slided = (
-    #     masked_calc_q_all_slided - np.mean(masked_calc_q_all_slided)
-    # ) / np.std(masked_calc_q_all_slided)
-
-    masked_dt_all = dt_all[mask]
+    if args.normalize:
+        masked_q_all = normalize(masked_q_all)
+        masked_q_all_spline = normalize(masked_q_all_spline)
+        masked_calc_q_all = normalize(masked_calc_q_all)
+        masked_calc_q_all_slided = normalize(masked_calc_q_all_slided)
 
     unified_dates = np.vectorize(
         lambda dt: datetime.datetime(
@@ -156,81 +201,122 @@ if __name__ == "__main__":
         corr_with_real_and_calc_slided,
         estimated_delay_with_real_and_calc_slided,
     ) = calc_delay(masked_q_all, masked_calc_q_all_slided)
-    print(f"ずれ時間（実測値と計算値（ずらし有り））: {estimated_delay_with_real_and_calc_slided}[s]")
+    print(
+        f"ずれ時間（実測値と計算値（{args.slide_seconds}[s]{advance_or_delay(args.slide_seconds)}））: {estimated_delay_with_real_and_calc_slided}[s]"
+    )
+
+    (
+        corr_with_real_spline_and_calc_slided,
+        estimated_delay_with_real_spline_and_calc_slided,
+    ) = calc_delay(masked_q_all_spline, masked_calc_q_all_slided)
+    print(
+        f"ずれ時間（実測値（スプライン）と計算値（{args.slide_seconds}[s]{advance_or_delay(args.slide_seconds)}））: {estimated_delay_with_real_spline_and_calc_slided}[s]"
+    )
 
     # ずらしありの計算値列を左から右へスライドさせていく
     (
         corr_with_calc_and_calc_slided,
         estimated_delay_with_calc_and_calc_slided,
     ) = calc_delay(masked_calc_q_all, masked_calc_q_all_slided)
-    print(f"ずれ時間(計算値と計算値（ずらし有り）): {estimated_delay_with_calc_and_calc_slided}[s]")
+    print(
+        f"ずれ時間(計算値と計算値（{args.slide_seconds}[s]{advance_or_delay(args.slide_seconds)}）): {estimated_delay_with_calc_and_calc_slided}[s]"
+    )
+
+    fig, axes = plt.subplots(2, 4)
+    fig.set_constrained_layout(True)
 
     # 実測値と計算値
-    axes[0].plot(
+    axes[0, 0].plot(
         unified_dates,
         masked_q_all,
         label=f"実測値: {dt_all[0].strftime('%Y-%m-%d')}",
         color=colorlist[0],
     )
-    axes[0].plot(
+    axes[0, 0].plot(
         unified_dates,
         masked_calc_q_all,
         label=f"計算値: {dt_all[0].strftime('%Y-%m-%d')}",
         linestyle="dashed",
         color=colorlist[1],
     )
-    axes[0].set_title(f"ずれ時間: {estimated_delay_with_real_and_calc}[s]")
-    axes[0].set_xlabel("時刻")
-    axes[0].set_ylabel("日射量[kW/m^2]")
-    axes[0].xaxis.set_major_formatter(mdates.DateFormatter("%H:%M:%S"))
-    axes[0].legend()
+    axes[0, 0].set_title(f"実測値と計算値\nずれ時間: {estimated_delay_with_real_and_calc}[s]")
+    axes[0, 0].set_xlabel("時刻")
+    axes[0, 0].set_ylabel("日射量[kW/m^2]")
+    axes[0, 0].xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
+    axes[0, 0].legend()
 
     # 実測値と計算値（ずらし有り）
-    axes[1].plot(
+    axes[0, 1].plot(
         unified_dates,
         masked_q_all,
         label=f"実測値: {dt_all[0].strftime('%Y-%m-%d')}",
         color=colorlist[0],
     )
-    axes[1].plot(
+    axes[0, 1].plot(
         unified_dates,
         masked_calc_q_all_slided,
-        label=f"計算値(ずらし有り): {dt_all[0].strftime('%Y-%m-%d')}",
+        label=f"計算値({args.slide_seconds}[s]{advance_or_delay(args.slide_seconds)}): {dt_all[0].strftime('%Y-%m-%d')}",
         linestyle="dashed",
         color=colorlist[1],
     )
-    axes[1].set_title(f"ずれ時間: {estimated_delay_with_real_and_calc_slided}[s]")
-    axes[1].set_xlabel("時刻")
-    axes[1].set_ylabel("日射量[kW/m^2]")
-    axes[1].xaxis.set_major_formatter(mdates.DateFormatter("%H:%M:%S"))
-    axes[1].legend()
+    axes[0, 1].set_title(
+        f"実測値と計算値（{args.slide_seconds}[s]{advance_or_delay(args.slide_seconds)}）\nずれ時間: {estimated_delay_with_real_and_calc_slided}[s]"
+    )
+    axes[0, 1].set_xlabel("時刻")
+    axes[0, 1].set_ylabel("日射量[kW/m^2]")
+    axes[0, 1].xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
+    axes[0, 1].legend()
+
+    # 実測値（スプライン）と計算値（ずらし有り）
+    axes[0, 2].plot(
+        unified_dates,
+        masked_q_all_spline,
+        label=f"実測値: {dt_all[0].strftime('%Y-%m-%d')}",
+        color=colorlist[0],
+    )
+    axes[0, 2].plot(
+        unified_dates,
+        masked_calc_q_all_slided,
+        label=f"計算値({args.slide_seconds}[s]{advance_or_delay(args.slide_seconds)}): {dt_all[0].strftime('%Y-%m-%d')}",
+        linestyle="dashed",
+        color=colorlist[1],
+    )
+    axes[0, 2].set_title(
+        f"実測値（スプライン）と計算値（{args.slide_seconds}[s]{advance_or_delay(args.slide_seconds)}）\nずれ時間: {estimated_delay_with_real_spline_and_calc_slided}[s]"
+    )
+    axes[0, 2].set_xlabel("時刻")
+    axes[0, 2].set_ylabel("日射量[kW/m^2]")
+    axes[0, 2].xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
+    axes[0, 2].legend()
 
     # 計算値同と計算値（ずらし有り）
-    axes[2].plot(
+    axes[0, 3].plot(
         unified_dates,
         masked_calc_q_all,
         label=f"計算値: {dt_all[0].strftime('%Y-%m-%d')}",
         color=colorlist[0],
     )
-    axes[2].plot(
+    axes[0, 3].plot(
         unified_dates,
         masked_calc_q_all_slided,
-        label=f"計算値(ずらし有り): {dt_all[0].strftime('%Y-%m-%d')}",
+        label=f"計算値({args.slide_seconds}[s]{advance_or_delay(args.slide_seconds)}): {dt_all[0].strftime('%Y-%m-%d')}",
         linestyle="dashed",
         color=colorlist[1],
     )
-    # axes[2].plot(
+    # axes[0, 3].plot(
     #     unified_dates,
     #     np.roll(masked_calc_q_all_slided, args.slide_seconds),
     #     label=f"計算値(ずらし有りをロール): {dt_all[0].strftime('%Y-%m-%d')}",
     #     linestyle="dashdot",
     #     color=colorlist[2],
     # )
-    axes[2].set_title(f"ずれ時間: {estimated_delay_with_calc_and_calc_slided}[s]")
-    axes[2].set_xlabel("時刻")
-    axes[2].set_ylabel("日射量[kW/m^2]")
-    axes[2].xaxis.set_major_formatter(mdates.DateFormatter("%H:%M:%S"))
-    axes[2].legend()
+    axes[0, 3].set_title(
+        f"計算値と計算値（{args.slide_seconds}[s]{advance_or_delay(args.slide_seconds)}）\nずれ時間: {estimated_delay_with_calc_and_calc_slided}[s]"
+    )
+    axes[0, 3].set_xlabel("時刻")
+    axes[0, 3].set_ylabel("日射量[kW/m^2]")
+    axes[0, 3].xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
+    axes[0, 3].legend()
 
     lags = np.concatenate(
         [
@@ -239,15 +325,16 @@ if __name__ == "__main__":
         ],
         0,
     )
-    axes[3].plot(
+    axes[1, 0].plot(
         lags,
         corr_with_real_and_calc,
         label=f"相互相関: {dt_all[0].strftime('%Y-%m-%d')}",
         color=colorlist[0],
     )
-    axes[3].set_xlabel("ラグ")
-    axes[3].set_ylabel("相互相関")
-    axes[3].legend()
+    axes[1, 0].set_title(f"実測値と計算値")
+    axes[1, 0].set_xlabel("ラグ")
+    axes[1, 0].set_ylabel("相互相関")
+    axes[1, 0].legend()
 
     lags = np.concatenate(
         [
@@ -256,15 +343,18 @@ if __name__ == "__main__":
         ],
         0,
     )
-    axes[4].plot(
+    axes[1, 1].plot(
         lags,
         corr_with_real_and_calc_slided,
         label=f"相互相関: {dt_all[0].strftime('%Y-%m-%d')}",
         color=colorlist[0],
     )
-    axes[4].set_xlabel("ラグ")
-    axes[4].set_ylabel("相互相関")
-    axes[4].legend()
+    axes[1, 1].set_title(
+        f"実測値と計算値（{args.slide_seconds}[s]{advance_or_delay(args.slide_seconds)}）"
+    )
+    axes[1, 1].set_xlabel("ラグ")
+    axes[1, 1].set_ylabel("相互相関")
+    axes[1, 1].legend()
 
     lags = np.concatenate(
         [
@@ -273,14 +363,37 @@ if __name__ == "__main__":
         ],
         0,
     )
-    axes[5].plot(
+    axes[1, 2].plot(
+        lags,
+        corr_with_real_spline_and_calc_slided,
+        label=f"相互相関: {dt_all[0].strftime('%Y-%m-%d')}",
+        color=colorlist[0],
+    )
+    axes[1, 2].set_title(
+        f"実測値（スプライン）と計算値（{args.slide_seconds}[s]{advance_or_delay(args.slide_seconds)}）"
+    )
+    axes[1, 2].set_xlabel("ラグ")
+    axes[1, 2].set_ylabel("相互相関")
+    axes[1, 2].legend()
+
+    lags = np.concatenate(
+        [
+            np.arange(-1 * len(masked_calc_q_all_slided) + 1, 0, 1),
+            np.arange(0, len(masked_calc_q_all_slided), 1),
+        ],
+        0,
+    )
+    axes[1, 3].plot(
         lags,
         corr_with_calc_and_calc_slided,
         label=f"相互相関: {dt_all[0].strftime('%Y-%m-%d')}",
         color=colorlist[0],
     )
-    axes[5].set_xlabel("ラグ")
-    axes[5].set_ylabel("相互相関")
-    axes[5].legend()
+    axes[1, 3].set_title(
+        f"計算値と計算値（{args.slide_seconds}[s]{advance_or_delay(args.slide_seconds)}）"
+    )
+    axes[1, 3].set_xlabel("ラグ")
+    axes[1, 3].set_ylabel("相互相関")
+    axes[1, 3].legend()
 
     plt.show()
