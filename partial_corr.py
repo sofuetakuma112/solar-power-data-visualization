@@ -14,6 +14,7 @@ from utils.spline_model import get_natural_cubic_spline_model
 
 
 def calc_delay(a, b):
+    # aを固定して、bを左から右へスライドさせていく
     corr = np.correlate(a, b, "full")
     return [corr, corr.argmax() - (len(b) - 1)]
 
@@ -208,13 +209,13 @@ if __name__ == "__main__":
     (
         corr_with_real_and_calc,
         estimated_delay_with_real_and_calc,
-    ) = calc_delay(masked_q_all, masked_calc_q_all)
+    ) = calc_delay(masked_calc_q_all, masked_q_all)
     print(f"ずれ時間（実測値と計算値）: {estimated_delay_with_real_and_calc}[s]")
 
     (
         corr_with_real_and_calc_slided,
         estimated_delay_with_real_and_calc_slided,
-    ) = calc_delay(masked_q_all, masked_calc_q_all_slided)
+    ) = calc_delay(masked_calc_q_all_slided, masked_q_all)
     print(
         f"ずれ時間（実測値と計算値（{args.slide_seconds}[s]{advance_or_delay(args.slide_seconds)}））: {estimated_delay_with_real_and_calc_slided}[s]"
     )
@@ -222,7 +223,7 @@ if __name__ == "__main__":
     (
         corr_with_real_spline_and_calc_slided,
         estimated_delay_with_real_spline_and_calc_slided,
-    ) = calc_delay(masked_q_all_spline, masked_calc_q_all_slided)
+    ) = calc_delay(masked_calc_q_all_slided, masked_q_all_spline)
     print(
         f"ずれ時間（実測値（スプライン）と計算値（{args.slide_seconds}[s]{advance_or_delay(args.slide_seconds)}））: {estimated_delay_with_real_spline_and_calc_slided}[s]"
     )
@@ -231,7 +232,7 @@ if __name__ == "__main__":
     (
         corr_with_calc_and_calc_slided,
         estimated_delay_with_calc_and_calc_slided,
-    ) = calc_delay(masked_calc_q_all, masked_calc_q_all_slided)
+    ) = calc_delay(masked_calc_q_all_slided, masked_calc_q_all)
     print(
         f"ずれ時間(計算値と計算値（{args.slide_seconds}[s]{advance_or_delay(args.slide_seconds)}）): {estimated_delay_with_calc_and_calc_slided}[s]"
     )
