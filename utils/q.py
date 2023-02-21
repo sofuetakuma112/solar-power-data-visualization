@@ -1,3 +1,4 @@
+from matplotlib import pyplot as plt
 import numpy as np
 import datetime
 import pandas as pd
@@ -5,6 +6,10 @@ import pvlib
 from pvlib import clearsky
 import requests
 import sqlite3
+import japanize_matplotlib
+
+from scipy.interpolate import interp1d
+import zoneinfo
 
 # 単位はワット
 def calcQ(dt, lat_deg, lng_deg):
@@ -111,19 +116,19 @@ class Q:
 
         solpos = pvlib.solarposition.get_solarposition(times, latitude, longitude)
 
-        apparent_zenith = solpos["apparent_zenith"]
-        azimuth = solpos["azimuth"]
-        airmass = pvlib.atmosphere.get_relative_airmass(apparent_zenith)
+        apparent_zenith = solpos["apparent_zenith"]  # 太陽天頂角
+        azimuth = solpos["azimuth"]  # 太陽方位角
+        airmass = pvlib.atmosphere.get_relative_airmass(apparent_zenith)  # 相対風量
 
-        # altitude = pvlib.location.lookup_altitude(latitude, longitude)
-        altitude = self.fetch_altitude(latitude, longitude)
-        pressure = pvlib.atmosphere.alt2pres(altitude)
-        airmass = pvlib.atmosphere.get_absolute_airmass(airmass, pressure)
+        altitude = self.fetch_altitude(latitude, longitude)  # 海抜高度
+        pressure = pvlib.atmosphere.alt2pres(altitude)  # 圧力？
+        airmass = pvlib.atmosphere.get_absolute_airmass(airmass, pressure)  # 絶対風量
         linke_turbidity = pvlib.clearsky.lookup_linke_turbidity(
             times, latitude, longitude
-        )
-        dni_extra = pvlib.irradiance.get_extra_radiation(times)
+        )  # 気候学的濁度値
+        dni_extra = pvlib.irradiance.get_extra_radiation(times)  # 大気外日射量？
 
+        # GHI, DHI, DNIを求める
         ineichen = clearsky.ineichen(
             apparent_zenith, airmass, linke_turbidity, altitude, dni_extra
         )
@@ -148,13 +153,178 @@ class Q:
 
         return goa_global
 
+    def calc_qs_kw_by_real_ghi(
+        self, dts, latitude, longitude, surface_tilt, surface_azimuth, model
+    ):
+        times = pd.DatetimeIndex(dts, tz="Asia/Tokyo")
 
-# def calc_q_kw_v2(dt, lng=33.82794, lat=132.75093):
-#     return max(calc_q_v2(dt, lng, lat), 0) / 1000
+        solpos = pvlib.solarposition.get_solarposition(times, latitude, longitude)
+
+        apparent_zenith = solpos["apparent_zenith"]  # 太陽天頂角
+        azimuth = solpos["azimuth"]  # 太陽方位角
+        airmass = pvlib.atmosphere.get_relative_airmass(apparent_zenith)  # 相対風量
+
+        altitude = self.fetch_altitude(latitude, longitude)  # 海抜高度
+        pressure = pvlib.atmosphere.alt2pres(altitude)  # 圧力？
+        airmass = pvlib.atmosphere.get_absolute_airmass(airmass, pressure)  # 絶対風量
+        linke_turbidity = pvlib.clearsky.lookup_linke_turbidity(
+            times, latitude, longitude
+        )  # 気候学的濁度値
+        dni_extra = pvlib.irradiance.get_extra_radiation(times)  # 大気外日射量？
+
+        # GHI, DHI, DNIを求める
+        ineichen = clearsky.ineichen(
+            apparent_zenith, airmass, linke_turbidity, altitude, dni_extra
+        )
+
+        # CSVからGHIを読み込む
+        df = pd.read_csv(
+            "/home/sofue/apps/solar-power-data-visualization/data/csv/japan_meteorological _agency/2022_01_01-2022_12_31.csv"
+        )
+        df["年月日時"] = pd.to_datetime(df["年月日時"])
+
+        print(f"dts[0]: {dts[0]}")
+        print(f"dts[-1]: {dts[-1]}")
+
+        # HACK: 一日しか対応できない
+        dt_first = dts[0]
+        next_day = datetime.datetime(
+            dt_first.year, dt_first.month, dt_first.day
+        ) + datetime.timedelta(days=1)
+        df = df[(dt_first < df["年月日時"]) & (df["年月日時"] <= next_day)]
+
+        for index, row in df.iterrows():
+            df.at[index, "年月日時"] = (
+                row["年月日時"] + datetime.timedelta(minutes=-30)
+            ).tz_localize("Asia/Tokyo")
+
+        # dfの頭と末尾に00:00:00, 23:59:59を差し込む
+        df_first = pd.DataFrame(
+            [
+                [
+                    datetime.datetime(
+                        dt_first.year,
+                        dt_first.month,
+                        dt_first.day,
+                        tzinfo=zoneinfo.ZoneInfo(key="Asia/Tokyo"),
+                    ),
+                    0.0,
+                    0,
+                    0,
+                ]
+            ],
+            columns=df.columns,
+        )
+        df_last = pd.DataFrame(
+            [
+                [
+                    datetime.datetime(
+                        dt_first.year,
+                        dt_first.month,
+                        dt_first.day,
+                        23,
+                        59,
+                        59,
+                        tzinfo=zoneinfo.ZoneInfo(key="Asia/Tokyo"),
+                    ),
+                    0.0,
+                    0,
+                    0,
+                ]
+            ],
+            columns=df.columns,
+        )
+
+        df = pd.concat([df_first, df], axis=0)
+        df = pd.concat([df, df_last], axis=0)
+
+        # df_ = df.set_index("年月日時")  # datetimeをindexに指定
+        # df_ = df_.asfreq(freq="1S")
+        # df = df_.reset_index()  # indexを元に戻す
+
+        print(df)
+
+        # df = df.fillna(0)
+
+        ghi_real = df["日射量(MJ/㎡)"].to_numpy() * 277.84
+
+        elapsed_times_from_dt_start = np.vectorize(
+            lambda dt: (
+                dt - pd.to_datetime(dt_first).tz_localize("Asia/Tokyo")
+            ).total_seconds()
+        )(df["年月日時"])
+
+        print(f"elapsed_times_from_dt_start: {elapsed_times_from_dt_start}")
+
+        myfunc = interp1d(elapsed_times_from_dt_start, ghi_real, kind="cubic")
+        ghi_complemented = myfunc(np.arange(0, 86400, 1))
+
+        # minus_indexes = np.where(ghi_complemented < 0)
+        # print(f"minus_indexes: {minus_indexes}")
+
+        print(f"len(times): {len(times)}")
+
+        # def dni(arr):
+        #     ghi, dt = arr
+        #     dni = pvlib.irradiance.disc(ghi, apparent_zenith, dt, pressure)["dni"]
+        #     return dni
+
+        # dni_predicted = np.apply_along_axis(
+        #     dni,
+        #     1,
+        #     np.stack([ghi_complemented, dts], 1),
+        # )
+
+        # print(f"dni_predicted: {dni_predicted}")
+
+        ghi = ineichen["ghi"]  # 全天日射量
+        dhi = ineichen["dhi"]  # 散乱日射量
+        dni = ineichen["dni"]  # 直達日射量
+
+        axes = [plt.subplots()[1] for _ in range(1)]
+        axes[0].plot(
+            times,
+            ghi,
+            label="ghi(推定)",
+        )
+        axes[0].plot(
+            np.vectorize(lambda dt: pd.to_datetime(dt).tz_localize("Asia/Tokyo"))(dts),
+            myfunc(np.arange(0, 86400, 1)),
+            label="ghi(実測 + 線形補間)",
+            linestyle="dashed",
+        )
+        axes[0].plot(
+            df["年月日時"],
+            ghi_real,
+            label="ghi(実測)",
+            linestyle="dashdot",
+        )
+        axes[0].set_xlabel("日時")
+        axes[0].set_ylabel("GHI W/m^2")
+        axes[0].legend()
+        plt.show()
+
+        # df_poa = pvlib.irradiance.get_total_irradiance(
+        #     surface_tilt,
+        #     surface_azimuth,
+        #     dni=dni,
+        #     ghi=ghi,
+        #     dhi=dhi,
+        #     dni_extra=dni_extra,
+        #     solar_zenith=apparent_zenith,
+        #     solar_azimuth=azimuth,
+        #     model=model,
+        # )
+
+        # goa_global = df_poa.loc[:, ["poa_global"]].to_numpy().flatten() / 1000
+
+        # return goa_global
 
 
 if __name__ == "__main__":
     # print(calcQ(datetime.datetime(2022, 5, 17, 17, 53), 33.82794, 132.75093))
     q = Q()
-    res = q.fetch_altitude(33.82794, 132.75093)
-    print(res)
+    dts = np.vectorize(
+        lambda s: datetime.datetime(2022, 4, 8) + datetime.timedelta(seconds=int(s))
+    )(np.arange(0, 86400, 1))
+    q.calc_qs_kw_by_real_ghi(dts, 33.82794, 132.75093, 26, 180, "isotropic")
