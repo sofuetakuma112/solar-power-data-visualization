@@ -21,9 +21,9 @@ def calc_delay(a, b):
 
 def advance_or_delay(seconds):
     if np.sign(seconds) == 1:
-        return f"計算値を{seconds}[s]進めている"
+        return f"{seconds}[s]進めている"
     elif np.sign(seconds) == -1:
-        return f"計算値を{seconds}[s]遅らせている"
+        return f"{seconds}[s]遅らせている"
     else:
         return ""
 
@@ -62,8 +62,8 @@ def update_row_and_column_index(crr_row_idx, crr_column_idx, rows, columns):
 
 # > python3 partial_corr.py -dt 2022/04/08 -slide_seconds 1000 -mask_from 07:20 -mask_to 17:10
 # > python3 partial_corr.py -dt 2022/04/08 -slide_seconds 10
-# > python3 partial_corr.py -dt 2022/04/08 -surface_tilt 26 -surface_azimuth 180.5 -h_racs -h_rpacs -h_cacs
-# > python3 partial_corr.py -dt 2022/06/02 -surface_tilt 28 -surface_azimuth 178.28 -masking_strategy replace_zero -mask_from 09:00 -mask_to 15:10 -slide_seconds 3600
+# > python3 partial_corr.py -dt 2022/04/08 -surface_tilt 26 -surface_azimuth 180.5 -h_racs -h_rpacs -h_cacs -h_cc
+# > python3 partial_corr.py -dt 2022/04/08 -surface_tilt 28 -surface_azimuth 178.28 -h_rpacs -h_cacs -h_cc -mask_from 07:20 -mask_to 17:10 -slide_seconds 100 -masking_strategy replace_zero
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-dt", type=str)  # グラフ描画したい日付のリスト
