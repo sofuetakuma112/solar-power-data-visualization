@@ -63,10 +63,13 @@ def update_row_and_column_index(crr_row_idx, crr_column_idx, rows, columns):
 # > python3 partial_corr.py -dt 2022/04/08 -slide_seconds 1000 -mask_from 07:20 -mask_to 17:10
 # > python3 partial_corr.py -dt 2022/04/08 -slide_seconds 10
 # > python3 partial_corr.py -dt 2022/04/08 -surface_tilt 26 -surface_azimuth 180.5 -h_racs -h_rpacs -h_cacs
+# > python3 partial_corr.py -dt 2022/06/02 -surface_tilt 28 -surface_azimuth 178.28 -masking_strategy replace_zero -mask_from 09:00 -mask_to 15:10 -slide_seconds 3600
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-dt", type=str)  # グラフ描画したい日付のリスト
-    parser.add_argument("-slide_seconds", type=int, default=0)
+    parser.add_argument(
+        "-slide_seconds", type=int, default=0
+    )  # 正の値の場合は左にスライド、負の場合は右にスライド
     parser.add_argument("-mask_from", type=str, default="00:00")
     parser.add_argument("-mask_to", type=str, default="24:00")
     parser.add_argument("-masking_strategy", type=str, default="drop")
@@ -77,9 +80,9 @@ if __name__ == "__main__":
     parser.add_argument("-surface_tilt", type=int, default=22)
     parser.add_argument("-surface_azimuth", type=float, default=185.0)
     parser.add_argument("-h_rac", action="store_true")  # 実測値と計算値
-    parser.add_argument("-h_racs", action="store_true")  # 実測値と計算値（ずらし）
-    parser.add_argument("-h_rpacs", action="store_true")  # 実測値（スプライン）と計算値（ずらし）
-    parser.add_argument("-h_cacs", action="store_true")  # 計算値と計算値（ずらし）
+    parser.add_argument("-h_racs", action="store_true")  # 実測値と計算値（ずらし）、real and calc slide
+    parser.add_argument("-h_rpacs", action="store_true")  # 実測値（スプライン）と計算値（ずらし）、real spline and calc slide
+    parser.add_argument("-h_cacs", action="store_true")  # 計算値と計算値（ずらし）、calc and calc slide
     args = parser.parse_args()
 
     year, month, date = args.dt.split("/")
@@ -116,14 +119,6 @@ if __name__ == "__main__":
     )
 
     print(f"真のズレ時間: {args.slide_seconds}[s]")
-    calced_q_all_slided = q.calc_qs_kw_v2(
-        dt_all + datetime.timedelta(seconds=args.slide_seconds),
-        latitude=33.82794,
-        longitude=132.75093,
-        surface_tilt=args.surface_tilt,
-        surface_azimuth=args.surface_azimuth,
-        model="isotropic",
-    )
 
     mask_from_hour, mask_from_minute = args.mask_from.split(":")
     mask_from = datetime.datetime(
@@ -165,7 +160,9 @@ if __name__ == "__main__":
         masked_q_all = q_all[mask]
         masked_q_all_spline = q_all_spline[mask]
         masked_calc_q_all = calced_q_all[mask]
-        masked_calc_q_all_slided = calced_q_all_slided[mask]
+        # TODO: マスクしてからslide_seconds秒だけスライドさせる
+        # 以前はスライドさせてからマスクを行っていた
+        masked_calc_q_all_slided = np.roll(masked_calc_q_all, -args.slide_seconds)
 
         masked_dt_all = dt_all[mask]
     elif args.masking_strategy == "replace":
@@ -177,16 +174,23 @@ if __name__ == "__main__":
         np.putmask(
             calced_q_all, inverted_mask, (calced_q_all * 0) + np.min(calced_q_all[mask])
         )
-        np.putmask(
-            calced_q_all_slided,
-            inverted_mask,
-            (calced_q_all_slided * 0) + np.min(calced_q_all_slided[mask]),
-        )
 
         masked_q_all = q_all
         masked_q_all_spline = q_all_spline
         masked_calc_q_all = calced_q_all
-        masked_calc_q_all_slided = calced_q_all_slided
+        masked_calc_q_all_slided = np.roll(masked_calc_q_all, -args.slide_seconds)
+
+        masked_dt_all = dt_all
+    elif args.masking_strategy == "replace_zero":
+        inverted_mask = np.logical_not(mask)
+        np.putmask(q_all_spline, inverted_mask, q_all_spline * 0)
+        np.putmask(q_all, inverted_mask, q_all * 0)
+        np.putmask(calced_q_all, inverted_mask, calced_q_all * 0)
+
+        masked_q_all = q_all
+        masked_q_all_spline = q_all_spline
+        masked_calc_q_all = calced_q_all
+        masked_calc_q_all_slided = np.roll(masked_calc_q_all, -args.slide_seconds)
 
         masked_dt_all = dt_all
     else:
