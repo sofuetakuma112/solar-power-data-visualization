@@ -183,9 +183,7 @@ class Q:
         )
         df["年月日時"] = pd.to_datetime(df["年月日時"])
 
-        print(f"dts[0]: {dts[0]}")
-        print(f"dts[-1]: {dts[-1]}")
-
+        # 引数で渡されたdtsの期間に対応する行だけにフィルタリングする
         # HACK: 一日しか対応できない
         dt_first = dts[0]
         next_day = datetime.datetime(
@@ -193,10 +191,13 @@ class Q:
         ) + datetime.timedelta(days=1)
         df = df[(dt_first < df["年月日時"]) & (df["年月日時"] <= next_day)]
 
+        # naive => awareに変更
         for index, row in df.iterrows():
             df.at[index, "年月日時"] = (
                 row["年月日時"] + datetime.timedelta(minutes=-30)
             ).tz_localize("Asia/Tokyo")
+
+        df_raw = df  # 行を追加する前の生データ
 
         # dfの頭と末尾に00:00:00, 23:59:59を差し込む
         df_first = pd.DataFrame(
@@ -238,14 +239,7 @@ class Q:
         df = pd.concat([df_first, df], axis=0)
         df = pd.concat([df, df_last], axis=0)
 
-        # df_ = df.set_index("年月日時")  # datetimeをindexに指定
-        # df_ = df_.asfreq(freq="1S")
-        # df = df_.reset_index()  # indexを元に戻す
-
-        print(df)
-
-        # df = df.fillna(0)
-
+        # 線形補完前
         ghi_real = df["日射量(MJ/㎡)"].to_numpy() * 277.84
 
         elapsed_times_from_dt_start = np.vectorize(
@@ -254,34 +248,57 @@ class Q:
             ).total_seconds()
         )(df["年月日時"])
 
-        print(f"elapsed_times_from_dt_start: {elapsed_times_from_dt_start}")
-
         myfunc = interp1d(elapsed_times_from_dt_start, ghi_real, kind="cubic")
-        ghi_complemented = myfunc(np.arange(0, 86400, 1))
+        ghi_complemented = myfunc(np.arange(0, dts.size, 1))
 
         # minus_indexes = np.where(ghi_complemented < 0)
         # print(f"minus_indexes: {minus_indexes}")
 
-        print(f"len(times): {len(times)}")
+        # 生データでDNIを推定する
+        # ghi_raw = df_raw["日射量(MJ/㎡)"].to_numpy() * 277.84
+        dts_utc_from_df = np.vectorize(
+            lambda ts: ts.to_pydatetime().astimezone(datetime.timezone.utc)
+        )(df["年月日時"].to_numpy())
 
-        # def dni(arr):
-        #     ghi, dt = arr
-        #     dni = pvlib.irradiance.disc(ghi, apparent_zenith, dt, pressure)["dni"]
-        #     return dni
+        dt_index = pd.DatetimeIndex(dts_utc_from_df, tz="Asia/Tokyo")
 
-        # dni_predicted = np.apply_along_axis(
-        #     dni,
-        #     1,
-        #     np.stack([ghi_complemented, dts], 1),
-        # )
+        solar_zeniths_by_df_timestamp = pvlib.solarposition.get_solarposition(
+            dt_index,
+            latitude,
+            longitude,
+        )["apparent_zenith"]
 
-        # print(f"dni_predicted: {dni_predicted}")
+        # 生のGNIでDNIを推定する
+        dni_calc_with_raw_ghi = pvlib.irradiance.dirint(
+            ghi_real,
+            solar_zeniths_by_df_timestamp,
+            dt_index,
+            pressure,
+        ).fillna(0)
+
+        print(f"dni_calc_with_raw_ghi.size: {dni_calc_with_raw_ghi.size}")
+        print(f"elapsed_times_from_dt_start.size: {elapsed_times_from_dt_start.size}")
+
+        myfunc = interp1d(
+            elapsed_times_from_dt_start, dni_calc_with_raw_ghi, kind="cubic"
+        )
+        dni_complemented = myfunc(np.arange(0, dts.size, 1))
+
+        print(dni_calc_with_raw_ghi)
+
+        # 補間したGHIでDNIを推定する
+        dni_calc_with_comp_ghi = pvlib.irradiance.dirint(
+            ghi_complemented,
+            apparent_zenith,
+            times,
+            pressure,
+        )
 
         ghi = ineichen["ghi"]  # 全天日射量
         dhi = ineichen["dhi"]  # 散乱日射量
         dni = ineichen["dni"]  # 直達日射量
 
-        axes = [plt.subplots()[1] for _ in range(1)]
+        axes = [plt.subplots()[1] for _ in range(2)]
         axes[0].plot(
             times,
             ghi,
@@ -289,7 +306,7 @@ class Q:
         )
         axes[0].plot(
             np.vectorize(lambda dt: pd.to_datetime(dt).tz_localize("Asia/Tokyo"))(dts),
-            myfunc(np.arange(0, 86400, 1)),
+            ghi_complemented,
             label="ghi(実測 + 線形補間)",
             linestyle="dashed",
         )
@@ -302,6 +319,34 @@ class Q:
         axes[0].set_xlabel("日時")
         axes[0].set_ylabel("GHI W/m^2")
         axes[0].legend()
+
+        axes[1].plot(
+            times,
+            dni,
+            label="dni(推定)",
+        )
+        axes[1].plot(
+            df["年月日時"],
+            dni_calc_with_raw_ghi,
+            label="dni(DHI実測値から推定)",
+            linestyle="dashed",
+        )
+        axes[1].plot(
+            times,
+            dni_complemented,
+            label="補間済みDNI(DHI実測値から推定)",
+            linestyle="dotted",
+        )
+        # axes[1].plot(
+        #     times,
+        #     dni_calc_with_comp_ghi,
+        #     label="dni(DHI実測値(補間)から推定)",
+        #     linestyle="dashdot",
+        # )
+        axes[1].set_xlabel("日時")
+        axes[1].set_ylabel("DNI W/m^2")
+        axes[1].legend()
+
         plt.show()
 
         # df_poa = pvlib.irradiance.get_total_irradiance(
