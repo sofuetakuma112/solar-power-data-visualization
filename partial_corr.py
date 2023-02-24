@@ -1,6 +1,8 @@
 import datetime
 import matplotlib.pyplot as plt
 import japanize_matplotlib
+from utils.corr import calc_delay
+from utils.date import mask_from_into_dt, mask_to_into_dt
 from utils.es.load import load_q_and_dt_for_period
 import argparse
 import numpy as np
@@ -11,12 +13,6 @@ import matplotlib.dates as mdates
 from scipy import interpolate
 
 from utils.spline_model import get_natural_cubic_spline_model
-
-
-def calc_delay(a, b):
-    # aを固定して、bを左から右へスライドさせていく
-    corr = np.correlate(a, b, "full")
-    return [corr, corr.argmax() - (len(b) - 1)]
 
 
 def advance_or_delay(seconds):
@@ -127,39 +123,11 @@ if __name__ == "__main__":
 
     print(f"真のズレ時間: {args.slide_seconds}[s]")
 
-    mask_from_hour, mask_from_minute = args.mask_from.split(":")
-    mask_from = datetime.datetime(
-        int(year),
-        int(month),
-        int(date),
-        int(mask_from_hour),
-        int(mask_from_minute),
-        int(0),
-    )
-
-    mask_to_hour, mask_to_minute = args.mask_to.split(":")
-    if int(mask_to_hour) == 24:
-        mask_to = datetime.datetime(
-            int(year),
-            int(month),
-            int(date),
-            int(0),
-            int(mask_to_minute),
-            int(0),
-        ) + datetime.timedelta(days=1)
-    else:
-        mask_to = datetime.datetime(
-            int(year),
-            int(month),
-            int(date),
-            int(mask_to_hour),
-            int(mask_to_minute),
-            int(0),
-        )
+    mask_from = mask_from_into_dt(args.mask_from)
+    mask_to = mask_to_into_dt(args.mask_to)
 
     print(f"{mask_from} 〜 {mask_to}")
 
-    # 1日全て
     mask = (mask_from <= dt_all) & (dt_all < mask_to)
 
     # マスク処理

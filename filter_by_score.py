@@ -18,8 +18,9 @@ from utils.q import Q
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-csv", type=str)  # グラフ描画したい日付のリスト
-    parser.add_argument("-head", type=int)  # グラフ描画したい日付のリスト
+    parser.add_argument("-csv", type=str)  # 計測データのCSVファイルの名前
+    parser.add_argument("-head", type=int)  # DataFrameの上位何件のみを使用するか
+    parser.add_argument("-only_csv", action="store_true") # スコアリングした結果をCSVに出力するだけにするか
     args = parser.parse_args()
 
     DIR_PATH = "data/csv/scoring_measured_value"
@@ -36,6 +37,15 @@ if __name__ == "__main__":
         dts = df.head(args.head)["dt"].to_numpy()
 
     print(f"dts: {dts}")
+
+    # csvで出力する
+    OUTPUT_CSV_DIR_PATH = "data/csv/filter_by_score"
+    if not os.path.exists(OUTPUT_CSV_DIR_PATH):
+        os.makedirs(OUTPUT_CSV_DIR_PATH)
+    df.to_csv(f'{OUTPUT_CSV_DIR_PATH}/score.csv')
+
+    if args.only_csv:
+        exit()
 
     dir = "./images/filter_by_score"
     if not os.path.exists(dir):
