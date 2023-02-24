@@ -268,23 +268,34 @@ class Q:
             longitude,
         )["apparent_zenith"]
 
-        # 生のGNIでDNIを推定する
-        dni_calc_with_raw_ghi = pvlib.irradiance.dirint(
+        # 生のGHIでDNIを推定する
+        dni_calc_with_raw_ghi_before_fillna = pvlib.irradiance.dirint(
             ghi_real,
             solar_zeniths_by_df_timestamp,
             dt_index,
             pressure,
-        ).fillna(0)
-
-        print(f"dni_calc_with_raw_ghi.size: {dni_calc_with_raw_ghi.size}")
-        print(f"elapsed_times_from_dt_start.size: {elapsed_times_from_dt_start.size}")
+        )
+        dni_calc_with_raw_ghi = dni_calc_with_raw_ghi_before_fillna.fillna(0)
 
         myfunc = interp1d(
             elapsed_times_from_dt_start, dni_calc_with_raw_ghi, kind="cubic"
         )
         dni_complemented = myfunc(np.arange(0, dts.size, 1))
 
-        print(dni_calc_with_raw_ghi)
+        # 生のGHIと、それを使って推定したDNIからDHIを推定する
+        irradiance = pvlib.irradiance.complete_irradiance(
+            solar_zenith=solar_zeniths_by_df_timestamp,
+            ghi=ghi_real,
+            dni=dni_calc_with_raw_ghi_before_fillna,
+        )
+        dhi_calc_with_raw_ghi = irradiance["dhi"].fillna(0)
+
+        print(irradiance)
+
+        myfunc = interp1d(
+            elapsed_times_from_dt_start, dhi_calc_with_raw_ghi, kind="cubic"
+        )
+        dhi_complemented = myfunc(np.arange(0, dts.size, 1))
 
         # 補間したGHIでDNIを推定する
         dni_calc_with_comp_ghi = pvlib.irradiance.dirint(
@@ -298,7 +309,7 @@ class Q:
         dhi = ineichen["dhi"]  # 散乱日射量
         dni = ineichen["dni"]  # 直達日射量
 
-        axes = [plt.subplots()[1] for _ in range(2)]
+        axes = [plt.subplots()[1] for _ in range(3)]
         axes[0].plot(
             times,
             ghi,
@@ -346,6 +357,27 @@ class Q:
         axes[1].set_xlabel("日時")
         axes[1].set_ylabel("DNI W/m^2")
         axes[1].legend()
+
+        axes[2].plot(
+            times,
+            dhi,
+            label="DHI(推定)",
+        )
+        axes[2].plot(
+            df["年月日時"],
+            dhi_calc_with_raw_ghi,
+            label="DHI(GHI実測値から推定)",
+            linestyle="dotted",
+        )
+        axes[2].plot(
+            times,
+            dhi_complemented,
+            label="補完済みDHI(GHI実測値から推定)",
+            linestyle="dotted",
+        )
+        axes[2].set_xlabel("日時")
+        axes[2].set_ylabel("DHI W/m^2")
+        axes[2].legend()
 
         plt.show()
 
