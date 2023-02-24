@@ -21,9 +21,9 @@ def calc_delay(a, b):
 
 def advance_or_delay(seconds):
     if np.sign(seconds) == 1:
-        return "進めている"
+        return f"計算値を{seconds}[s]進めている"
     elif np.sign(seconds) == -1:
-        return "遅らせている"
+        return f"計算値を{seconds}[s]遅らせている"
     else:
         return ""
 
@@ -80,9 +80,16 @@ if __name__ == "__main__":
     parser.add_argument("-surface_tilt", type=int, default=22)
     parser.add_argument("-surface_azimuth", type=float, default=185.0)
     parser.add_argument("-h_rac", action="store_true")  # 実測値と計算値
-    parser.add_argument("-h_racs", action="store_true")  # 実測値と計算値（ずらし）、real and calc slide
-    parser.add_argument("-h_rpacs", action="store_true")  # 実測値（スプライン）と計算値（ずらし）、real spline and calc slide
-    parser.add_argument("-h_cacs", action="store_true")  # 計算値と計算値（ずらし）、calc and calc slide
+    parser.add_argument(
+        "-h_racs", action="store_true"
+    )  # 実測値と計算値（ずらし）、real and calc slide
+    parser.add_argument(
+        "-h_rpacs", action="store_true"
+    )  # 実測値（スプライン）と計算値（ずらし）、real spline and calc slide
+    parser.add_argument(
+        "-h_cacs", action="store_true"
+    )  # 計算値と計算値（ずらし）、calc and calc slide
+    parser.add_argument("-h_cc", action="store_true")  # 相互相関、cross correlation
     args = parser.parse_args()
 
     year, month, date = args.dt.split("/")
@@ -221,7 +228,7 @@ if __name__ == "__main__":
         estimated_delay_with_real_and_calc_slided,
     ) = calc_delay(masked_calc_q_all_slided, masked_q_all)
     print(
-        f"ずれ時間（実測値と計算値（{args.slide_seconds}[s]{advance_or_delay(args.slide_seconds)}））: {estimated_delay_with_real_and_calc_slided}[s]"
+        f"ずれ時間（実測値と計算値（{advance_or_delay(args.slide_seconds)}））: {estimated_delay_with_real_and_calc_slided}[s]"
     )
 
     (
@@ -229,7 +236,7 @@ if __name__ == "__main__":
         estimated_delay_with_real_spline_and_calc_slided,
     ) = calc_delay(masked_calc_q_all_slided, masked_q_all_spline)
     print(
-        f"ずれ時間（実測値（スプライン）と計算値（{args.slide_seconds}[s]{advance_or_delay(args.slide_seconds)}））: {estimated_delay_with_real_spline_and_calc_slided}[s]"
+        f"ずれ時間（実測値（スプライン）と計算値（{advance_or_delay(args.slide_seconds)}））: {estimated_delay_with_real_spline_and_calc_slided}[s]"
     )
 
     # ずらしありの計算値列を左から右へスライドさせていく
@@ -238,25 +245,30 @@ if __name__ == "__main__":
         estimated_delay_with_calc_and_calc_slided,
     ) = calc_delay(masked_calc_q_all_slided, masked_calc_q_all)
     print(
-        f"ずれ時間(計算値と計算値（{args.slide_seconds}[s]{advance_or_delay(args.slide_seconds)}）): {estimated_delay_with_calc_and_calc_slided}[s]"
+        f"ずれ時間(計算値と計算値（{advance_or_delay(args.slide_seconds)}）): {estimated_delay_with_calc_and_calc_slided}[s]"
     )
 
-    total_figure_count = 8
+    if args.h_cc:
+        total_figure_count = 4
+        count_of_fig_per_unit = 1
+    else:
+        total_figure_count = 8
+        count_of_fig_per_unit = 2
 
     if args.h_rac:
-        total_figure_count -= 2
+        total_figure_count -= count_of_fig_per_unit
     if args.h_racs:
-        total_figure_count -= 2
+        total_figure_count -= count_of_fig_per_unit
     if args.h_rpacs:
-        total_figure_count -= 2
+        total_figure_count -= count_of_fig_per_unit
     if args.h_cacs:
-        total_figure_count -= 2
+        total_figure_count -= count_of_fig_per_unit
 
     if total_figure_count == 0:
         exit()
 
-    rows = 2
-    columns = int(total_figure_count / 2)
+    rows = int(count_of_fig_per_unit)
+    columns = int(total_figure_count / count_of_fig_per_unit)
 
     if rows > columns:
         # rowsとcolumsをひっくり返す
@@ -313,12 +325,12 @@ if __name__ == "__main__":
         axes[crr_row_idx, crr_column_idx].plot(
             unified_dates,
             masked_calc_q_all_slided,
-            label=f"計算値({args.slide_seconds}[s]{advance_or_delay(args.slide_seconds)}): {dt_all[0].strftime('%Y-%m-%d')}",
+            label=f"計算値({advance_or_delay(args.slide_seconds)}): {dt_all[0].strftime('%Y-%m-%d')}",
             linestyle="dashed",
             color=colorlist[1],
         )
         axes[crr_row_idx, crr_column_idx].set_title(
-            f"実測値と計算値（{args.slide_seconds}[s]{advance_or_delay(args.slide_seconds)}）\nずれ時間: {estimated_delay_with_real_and_calc_slided}[s]\n{span}"
+            f"実測値と計算値（{advance_or_delay(args.slide_seconds)}）\nずれ時間: {estimated_delay_with_real_and_calc_slided}[s]\n{span}"
         )
         axes[crr_row_idx, crr_column_idx].set_xlabel("時刻")
         axes[crr_row_idx, crr_column_idx].set_ylabel("日射量[kW/m^2]")
@@ -342,12 +354,12 @@ if __name__ == "__main__":
         axes[crr_row_idx, crr_column_idx].plot(
             unified_dates,
             masked_calc_q_all_slided,
-            label=f"計算値({args.slide_seconds}[s]{advance_or_delay(args.slide_seconds)}): {dt_all[0].strftime('%Y-%m-%d')}",
+            label=f"計算値({advance_or_delay(args.slide_seconds)}): {dt_all[0].strftime('%Y-%m-%d')}",
             linestyle="dashed",
             color=colorlist[1],
         )
         axes[crr_row_idx, crr_column_idx].set_title(
-            f"実測値（スプライン）と計算値（{args.slide_seconds}[s]{advance_or_delay(args.slide_seconds)}）\nずれ時間: {estimated_delay_with_real_spline_and_calc_slided}[s]\n{span}"
+            f"実測値（スプライン）と計算値（{advance_or_delay(args.slide_seconds)}）\nずれ時間: {estimated_delay_with_real_spline_and_calc_slided}[s]\n{span}"
         )
         axes[crr_row_idx, crr_column_idx].set_xlabel("時刻")
         axes[crr_row_idx, crr_column_idx].set_ylabel("日射量[kW/m^2]")
@@ -371,7 +383,7 @@ if __name__ == "__main__":
         axes[crr_row_idx, crr_column_idx].plot(
             unified_dates,
             masked_calc_q_all_slided,
-            label=f"計算値({args.slide_seconds}[s]{advance_or_delay(args.slide_seconds)}): {dt_all[0].strftime('%Y-%m-%d')}",
+            label=f"計算値({advance_or_delay(args.slide_seconds)}): {dt_all[0].strftime('%Y-%m-%d')}",
             linestyle="dashed",
             color=colorlist[1],
         )
@@ -383,7 +395,7 @@ if __name__ == "__main__":
         #     color=colorlist[2],
         # )
         axes[crr_row_idx, crr_column_idx].set_title(
-            f"計算値と計算値（{args.slide_seconds}[s]{advance_or_delay(args.slide_seconds)}）\nずれ時間: {estimated_delay_with_calc_and_calc_slided}[s]\n{span}"
+            f"計算値と計算値（{advance_or_delay(args.slide_seconds)}）\nずれ時間: {estimated_delay_with_calc_and_calc_slided}[s]\n{span}"
         )
         axes[crr_row_idx, crr_column_idx].set_xlabel("時刻")
         axes[crr_row_idx, crr_column_idx].set_ylabel("日射量[kW/m^2]")
@@ -396,7 +408,7 @@ if __name__ == "__main__":
             crr_row_idx, crr_column_idx, rows, columns
         )
 
-    if not args.h_rac:
+    if not args.h_rac and not args.h_cc:
         lags = np.concatenate(
             [
                 np.arange(-1 * len(masked_calc_q_all) + 1, 0, 1),
@@ -419,7 +431,7 @@ if __name__ == "__main__":
             crr_row_idx, crr_column_idx, rows, columns
         )
 
-    if not args.h_racs:
+    if not args.h_racs and not args.h_cc:
         lags = np.concatenate(
             [
                 np.arange(-1 * len(masked_calc_q_all_slided) + 1, 0, 1),
@@ -434,7 +446,7 @@ if __name__ == "__main__":
             color=colorlist[0],
         )
         axes[crr_row_idx, crr_column_idx].set_title(
-            f"実測値と計算値（{args.slide_seconds}[s]{advance_or_delay(args.slide_seconds)}）"
+            f"実測値と計算値（{advance_or_delay(args.slide_seconds)}）"
         )
         axes[crr_row_idx, crr_column_idx].set_xlabel("ラグ")
         axes[crr_row_idx, crr_column_idx].set_ylabel("相互相関")
@@ -444,7 +456,7 @@ if __name__ == "__main__":
             crr_row_idx, crr_column_idx, rows, columns
         )
 
-    if not args.h_rpacs:
+    if not args.h_rpacs and not args.h_cc:
         lags = np.concatenate(
             [
                 np.arange(-1 * len(masked_calc_q_all_slided) + 1, 0, 1),
@@ -459,7 +471,7 @@ if __name__ == "__main__":
             color=colorlist[0],
         )
         axes[crr_row_idx, crr_column_idx].set_title(
-            f"実測値（スプライン）と計算値（{args.slide_seconds}[s]{advance_or_delay(args.slide_seconds)}）"
+            f"実測値（スプライン）と計算値（{advance_or_delay(args.slide_seconds)}）"
         )
         axes[crr_row_idx, crr_column_idx].set_xlabel("ラグ")
         axes[crr_row_idx, crr_column_idx].set_ylabel("相互相関")
@@ -469,7 +481,7 @@ if __name__ == "__main__":
             crr_row_idx, crr_column_idx, rows, columns
         )
 
-    if not args.h_cacs:
+    if not args.h_cacs and not args.h_cc:
         lags = np.concatenate(
             [
                 np.arange(-1 * len(masked_calc_q_all_slided) + 1, 0, 1),
@@ -484,7 +496,7 @@ if __name__ == "__main__":
             color=colorlist[0],
         )
         axes[crr_row_idx, crr_column_idx].set_title(
-            f"計算値と計算値（{args.slide_seconds}[s]{advance_or_delay(args.slide_seconds)}）"
+            f"計算値と計算値（{advance_or_delay(args.slide_seconds)}）"
         )
         axes[crr_row_idx, crr_column_idx].set_xlabel("ラグ")
         axes[crr_row_idx, crr_column_idx].set_ylabel("相互相関")
