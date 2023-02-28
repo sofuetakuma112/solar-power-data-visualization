@@ -146,6 +146,12 @@ def mask_to_into_dt(mask_to, y, m, d):
         )
 
 
+def str2datetime(date_str, date_sepatator = "-"):
+    return datetime.datetime.strptime(
+        date_str, f"%Y{date_sepatator}%m{date_sepatator}%d %H:%M:%S"
+    )
+
+
 if __name__ == "__main__":
     dt1 = datetime.datetime(2018, 12, 31, 5, 0, 30, 500000)
     dt2 = datetime.datetime(2018, 12, 31, 5, 0, 31, 200000)

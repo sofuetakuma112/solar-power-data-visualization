@@ -5,3 +5,5 @@ jsons/
 **/.env
 
 images/
+
+data/csv/**/*.png
