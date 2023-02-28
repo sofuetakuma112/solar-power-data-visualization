@@ -130,6 +130,13 @@ if __name__ == "__main__":
                     label=f"実測値: {dt_all[0].strftime('%Y-%m-%d')}",
                     color=colorlist[0],
                 )
+                axes[0].plot(
+                    dt_all,
+                    calced_q_all,
+                    label=f"計算値: {dt_all[0].strftime('%Y-%m-%d')}",
+                    linestyle="dashed",
+                    color=colorlist[1],
+                )
                 axes[0].set_title(f"ずれ時間={estimated_delay}[s]")
                 axes[0].set_xlabel("時刻")
                 axes[0].set_ylabel("日射量[kW/m^2]")
