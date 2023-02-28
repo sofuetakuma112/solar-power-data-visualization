@@ -88,11 +88,11 @@ if __name__ == "__main__":
     parser.add_argument("-h_cc", action="store_true")  # 相互相関、cross correlation
     args = parser.parse_args()
 
-    year, month, date = args.dt.split("/")
+    year, month, day = args.dt.split("/")
     from_dt = datetime.datetime(
         int(year),
         int(month),
-        int(date),
+        int(day),
     )
 
     diff_days = 1.0
@@ -123,8 +123,8 @@ if __name__ == "__main__":
 
     print(f"真のズレ時間: {args.slide_seconds}[s]")
 
-    mask_from = mask_from_into_dt(args.mask_from)
-    mask_to = mask_to_into_dt(args.mask_to)
+    mask_from = mask_from_into_dt(args.mask_from, year, month, day)
+    mask_to = mask_to_into_dt(args.mask_to, year, month, day)
 
     print(f"{mask_from} 〜 {mask_to}")
 
