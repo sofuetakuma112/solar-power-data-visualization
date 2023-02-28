@@ -35,7 +35,7 @@ def input_with_validate(message):
 OUTPUT_CSV_DIR_PATH = "data/csv/calc_corr_by_day"
 OUTPUT_CSV_FILE_PATH = f"{OUTPUT_CSV_DIR_PATH}/result.csv"
 
-USER_INPUT_JSON_FILE_PATH = f"data/json/calc_corr_by_day/user_input"
+USER_INPUT_JSON_FILE_PATH = f"data/json/calc_corr_by_day/user_input.json"
 
 def cleanup(df, mask_from_tos):
     if not os.path.exists(OUTPUT_CSV_DIR_PATH):
