@@ -89,11 +89,8 @@ if __name__ == "__main__":
     # 実測値のmask_from ~ mask_to以外を0に置き換える
     inverted_mask = np.logical_not(mask)
     np.putmask(q_all, inverted_mask, q_all * 0)
-    # np.putmask(calced_q_all, inverted_mask, calced_q_all * 0)
 
     masked_q_all = q_all
-    # masked_calc_q_all = calced_q_all
-
     masked_dt_all = dt_all
 
     # 4. 「実測値列 - 指定したq」を求めて、実測値列の最小値を0にする
@@ -131,16 +128,23 @@ if __name__ == "__main__":
         linestyle="dashed",
         color=colorlist[1],
     )
-    axes[0].set_title(f"相互相関を計算する時\nずれ時間: {estimated_delay_with_real_and_calc}[s]\n{span}")
+    axes[0].set_title(
+        f"相互相関を計算する時\nずれ時間: {estimated_delay_with_real_and_calc}[s]\n{span}"
+    )
     axes[0].set_xlabel("時刻")
     axes[0].set_ylabel("日射量[kW/m^2]")
     axes[0].xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
     axes[0].legend()
 
+    tmp = masked_q_all + args.threshold_q
+    inverted_mask = np.logical_not(mask)
+    np.putmask(tmp, inverted_mask, tmp * np.nan)
+    masked_q_all = tmp
+
     # 実測値と計算値
     axes[1].plot(
         unified_dates,
-        masked_q_all + args.threshold_q,
+        masked_q_all,
         label=f"実測値: {dt_all[0].strftime('%Y-%m-%d')}",
         color=colorlist[0],
     )
@@ -151,7 +155,9 @@ if __name__ == "__main__":
         linestyle="dashed",
         color=colorlist[1],
     )
-    axes[1].set_title(f"実測値 + args.threshold_q\nずれ時間: {estimated_delay_with_real_and_calc}[s]\n{span}")
+    axes[1].set_title(
+        f"実測値と計算値の概形がどの程度一致しているか確認用"
+    )
     axes[1].set_xlabel("時刻")
     axes[1].set_ylabel("日射量[kW/m^2]")
     axes[1].xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
