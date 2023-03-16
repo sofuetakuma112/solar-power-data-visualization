@@ -1,27 +1,37 @@
+import argparse
 import datetime
 import matplotlib.pyplot as plt
 import japanize_matplotlib
+from utils.corr import calc_delay
 from utils.es.load import load_q_and_dt_for_period
 import os
 import json
-from utils.q import calc_qs_kw_v2
 import numpy as np
 from utils.correlogram import (
     unify_deltas_between_dts_v2,
 )
 from tqdm import tqdm
 
+from utils.q import Q
+
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-model", type=str, default="isotropic"
+    )  # 'isotropic', 'klucher', 'haydavies', 'reindl', 'king', 'perez'
+    parser.add_argument("-surface_tilt", type=int, default=22)
+    parser.add_argument("-surface_azimuth", type=float, default=185.0)
+    args = parser.parse_args()
+
     json_open = open("data/json/sorted_diffs.json", "r")
     diff_and_dates = json.load(json_open)
 
     for i, diff_and_date in enumerate(tqdm(diff_and_dates)):
-        diff, date = diff_and_date
+        _, date = diff_and_date
         days_len = 1.0
         from_dt = datetime.datetime.strptime(date, "%Y-%m-%d")
         to_dt = from_dt + datetime.timedelta(days=days_len)
 
-        print(f"current dt: {date}")
         dir = "./images/daily_q"
         if not os.path.exists(dir):
             os.makedirs(dir)
@@ -29,26 +39,28 @@ if __name__ == "__main__":
         if os.path.isfile(fig_file_path):
             continue
 
-        dt_all, q_all = load_q_and_dt_for_period(from_dt, days_len, True)
+        dt_all, q_all = load_q_and_dt_for_period(from_dt, days_len)
         dt_all, q_all = unify_deltas_between_dts_v2(dt_all, q_all)
 
-        calced_q_all = calc_qs_kw_v2(
+        q = Q()
+        calced_q_all = q.calc_qs_kw_v2(
             dt_all,
             latitude=33.82794,
             longitude=132.75093,
-            altitude=25.720,
-            surface_tilt=22,
-            surface_azimuth=185,
-            model="isotropic",
+            surface_tilt=args.surface_tilt,
+            surface_azimuth=args.surface_azimuth,
+            model=args.model,
         )
 
-        q_all_mean0 = q_all - q_all.mean()
-        calc_q_all_mean0 = calced_q_all - calced_q_all.mean()
+        (
+            corr,
+            estimated_delay,
+        ) = calc_delay(calced_q_all, q_all)
 
-        corr = np.correlate(q_all_mean0, calc_q_all_mean0, "full")
-        estimated_delay = corr.argmax() - (len(calc_q_all_mean0) - 1)
-
-        axes = [plt.subplots()[1] for _ in range(1)]
+        figsize_px = np.array([1280, 720])
+        dpi = 100
+        figsize_inch = figsize_px / dpi
+        axes = [plt.subplots(figsize=figsize_inch, dpi=dpi)[1] for _ in range(1)]
 
         axes[0].plot(dt_all, q_all, label="実測値")  # 実データをプロット
         axes[0].plot(
