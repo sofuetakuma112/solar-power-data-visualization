@@ -6,7 +6,7 @@ from utils.es.load import load_q_and_dt_for_period
 import os
 import argparse
 import numpy as np
-from utils.q import calc_q_kw
+from utils.q import Q, calc_q_kw
 from utils.correlogram import (
     unify_deltas_between_dts,
 )
@@ -17,10 +17,9 @@ from utils.colors import colorlist
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-dts", type=str, nargs="*")  # グラフ描画したい日付のリスト
-    parser.add_argument(
-        "-tv", "--theoretical_value", action="store_true"
-    )  # 理論値も合わせて表示するか
-    parser.add_argument("-sd", "--save_daily", action="store_true")  # 理論値も合わせて表示するか
+    parser.add_argument("-rv", "--real_value", action="store_true")  # 実測値を表示するか
+    parser.add_argument("-tv", "--theoretical_value", action="store_true")  # 理論値を表示するか
+    parser.add_argument("-sd", "--save_daily", action="store_true")
 
     args = parser.parse_args()
     dts = np.array(args.dts)
@@ -45,7 +44,7 @@ if __name__ == "__main__":
         )
 
         diff_days = 1.0
-        dt_all, Q_all = load_q_and_dt_for_period(from_dt, diff_days, True)
+        dt_all, Q_all = load_q_and_dt_for_period(from_dt, diff_days)
         dt_all, Q_all = unify_deltas_between_dts(dt_all, Q_all)
 
         dt_all = np.array(dt_all)
@@ -58,21 +57,35 @@ if __name__ == "__main__":
         )(dt_all)
 
         # 日毎に理論値と実測値の差を計算する
-        diffs = np.vectorize(calc_q_kw)(dt_all) - Q_all
+        q = Q()
+        surface_tilt = 28
+        surface_azimuth = 178.28
 
-        axes[0].plot(
-            unified_dates,
-            Q_all,
-            label=dt_all[0].strftime("%Y-%m-%d"),
-            color=colorlist[i],
+        calced_q_all = q.calc_qs_kw_v2(
+            dt_all,
+            latitude=33.82794,
+            longitude=132.75093,
+            surface_tilt=surface_tilt,
+            surface_azimuth=surface_azimuth,
+            model="isotropic",
         )
+
+        diffs = calced_q_all - Q_all
+
+        if args.real_value:
+            axes[0].plot(
+                unified_dates,
+                Q_all,
+                label=dt_all[0].strftime("%Y-%m-%d"),
+                color=colorlist[i],
+            )
         if args.theoretical_value:
             axes[0].plot(
                 unified_dates,
-                np.vectorize(calc_q_kw)(dt_all),
+                calced_q_all,
                 label=f"理論値: {dt_all[0].strftime('%Y-%m-%d')}",
-                linestyle="dashed",
-                color=colorlist[i],
+                linestyle="dashed" if args.real_value else "solid",
+                color=colorlist[i + 1],
             )
 
         axes[1].plot(
