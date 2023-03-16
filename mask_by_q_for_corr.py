@@ -1,9 +1,9 @@
 import datetime
+import json
 import os
 import matplotlib.pyplot as plt
 import japanize_matplotlib
 from utils.corr import calc_delay
-from utils.date import mask_from_into_dt, mask_to_into_dt
 from utils.es.load import load_q_and_dt_for_period
 import argparse
 import numpy as np
@@ -11,33 +11,9 @@ from utils.q import Q
 from utils.correlogram import unify_deltas_between_dts_v2
 from utils.colors import colorlist
 import matplotlib.dates as mdates
-from scipy import interpolate
 
-from utils.spline_model import get_natural_cubic_spline_model
 
-# > python3 mask_by_q_for_corr.py -dt 2022/04/08 -surface_tilt 28 -surface_azimuth 178.28 -mask_from 07:20 -mask_to 17:10 -masking_strategy replace_zero -threshold_q 0.2
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-dt", type=str)  # グラフ描画したい日付のリスト
-    parser.add_argument("-mask_from", type=str, default="00:00")
-    parser.add_argument("-mask_to", type=str, default="24:00")
-    parser.add_argument("-masking_strategy", type=str, default="drop")
-    parser.add_argument("-normalize", action="store_true")
-    parser.add_argument(
-        "-model", type=str, default="isotropic"
-    )  # 'isotropic', 'klucher', 'haydavies', 'reindl', 'king', 'perez'
-    parser.add_argument("-surface_tilt", type=int, default=22)
-    parser.add_argument("-surface_azimuth", type=float, default=185.0)
-    parser.add_argument("-threshold_q", type=float, default=0.2)
-    args = parser.parse_args()
-
-    year, month, day = args.dt.split("/")
-    from_dt = datetime.datetime(
-        int(year),
-        int(month),
-        int(day),
-    )
-
+def calc_by_dt(from_dt, fig_image_path=""):
     diff_days = 1.0
     dt_all, q_all = load_q_and_dt_for_period(from_dt, diff_days)
     dt_all, q_all = unify_deltas_between_dts_v2(dt_all, q_all)
@@ -110,7 +86,10 @@ if __name__ == "__main__":
     ) = calc_delay(calced_q_all, masked_q_all)
     print(f"ずれ時間（実測値と計算値）: {estimated_delay_with_real_and_calc}[s]")
 
-    axes = [plt.subplots()[1] for _ in range(2)]
+    figsize_px = np.array([1280, 720])
+    dpi = 100
+    figsize_inch = figsize_px / dpi
+    fig, axes = plt.subplots(1, 2, figsize=figsize_inch, dpi=dpi)
 
     span = f"{mask_from.strftime('%Y-%m-%d %H:%M:%S')}〜{mask_to.strftime('%Y-%m-%d %H:%M:%S')}"
 
@@ -129,7 +108,7 @@ if __name__ == "__main__":
         color=colorlist[1],
     )
     axes[0].set_title(
-        f"相互相関を計算する時\nずれ時間: {estimated_delay_with_real_and_calc}[s]\n{span}"
+        f"相互相関を計算する時\nずれ時間: {estimated_delay_with_real_and_calc}[s]\n{span}\nq: {args.threshold_q}"
     )
     axes[0].set_xlabel("時刻")
     axes[0].set_ylabel("日射量[kW/m^2]")
@@ -155,12 +134,67 @@ if __name__ == "__main__":
         linestyle="dashed",
         color=colorlist[1],
     )
-    axes[1].set_title(
-        f"実測値と計算値の概形がどの程度一致しているか確認用"
-    )
+    axes[1].set_title(f"実測値と計算値の概形がどの程度一致しているか確認用")
     axes[1].set_xlabel("時刻")
     axes[1].set_ylabel("日射量[kW/m^2]")
     axes[1].xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
     axes[1].legend()
 
-    plt.show()
+    if fig_image_path == "":
+        plt.show()
+    else:
+        # 新しい figure を画像として保存する
+        plt.savefig(fig_image_path)
+
+
+USER_INPUT_JSON_FILE_PATH = f"data/json/calc_corr_by_day/user_input.json"
+OUTPUT_DIR_PATH = "images/mask_by_q_for_corr"
+
+# > python3 mask_by_q_for_corr.py -dt 2022/04/08 -surface_tilt 28 -surface_azimuth 178.28 -mask_from 07:20 -mask_to 17:10 -masking_strategy replace_zero -threshold_q 0.2
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-dt", type=str)  # グラフ描画したい日付のリスト
+    parser.add_argument("-normalize", action="store_true")
+    parser.add_argument(
+        "-model", type=str, default="isotropic"
+    )  # 'isotropic', 'klucher', 'haydavies', 'reindl', 'king', 'perez'
+    parser.add_argument("-surface_tilt", type=int, default=22)
+    parser.add_argument("-surface_azimuth", type=float, default=185.0)
+    parser.add_argument("-threshold_q", type=float, default=0.2)
+    args = parser.parse_args()
+
+    if args.dt == None:
+        # jsonから読み込む
+        json_open = open(USER_INPUT_JSON_FILE_PATH, "r")
+        mask_from_tos = json.load(json_open)
+
+        fig_dir_path = f"{OUTPUT_DIR_PATH}"  # 図の保存先ディレクトリ
+        if not os.path.exists(fig_dir_path):
+            os.makedirs(fig_dir_path)
+
+        for i, from_dt_str in enumerate(mask_from_tos.keys()):
+            year, month, day = from_dt_str.split("/")
+            from_dt = datetime.datetime(
+                int(year),
+                int(month),
+                int(day),
+            )
+
+            fig_image_path = (
+                f"{fig_dir_path}/{str(i).zfill(4)}: {from_dt.strftime('%Y-%m-%d')}.png"
+            )
+
+            if os.path.isfile(fig_image_path):
+                continue
+            else:
+                calc_by_dt(from_dt, fig_image_path)
+
+    else:
+        year, month, day = args.dt.split("/")
+        from_dt = datetime.datetime(
+            int(year),
+            int(month),
+            int(day),
+        )
+
+        calc_by_dt(from_dt)
