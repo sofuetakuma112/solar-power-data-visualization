@@ -2,18 +2,22 @@ import datetime
 import sys
 import matplotlib.pyplot as plt
 import japanize_matplotlib
+from utils.corr import calc_delay
 from utils.es.load import load_q_and_dt_for_period
 import os
 import argparse
 import numpy as np
 from utils.q import Q, calc_q_kw
 from utils.correlogram import (
-    unify_deltas_between_dts,
+    unify_deltas_between_dts_v2,
 )
 import matplotlib.dates as mdates
 from utils.colors import colorlist
 
+FONT_SIZE = 14
+
 # > python3 plot_multiple_q.py -dts 2022/09/30 2022/04/08 2022/11/20 2022/05/03 2022/05/18 2022/10/30
+# > python3 plot_multiple_q.py -dts 2022/04/08 -rv
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-dts", type=str, nargs="*")  # グラフ描画したい日付のリスト
@@ -29,7 +33,11 @@ if __name__ == "__main__":
     )(dts).argsort()
     dts = dts[sorted_indexes]
 
-    axes = [plt.subplots()[1] for _ in range(2)]
+    figsize_px = np.array([1280, 720])
+    dpi = 100
+    figsize_inch = figsize_px / dpi
+
+    axes = [plt.subplots(figsize=figsize_inch, dpi=dpi)[1] for _ in range(2)]
 
     def plot_daily(dt_str, i):
         if args.save_daily:
@@ -44,11 +52,8 @@ if __name__ == "__main__":
         )
 
         diff_days = 1.0
-        dt_all, Q_all = load_q_and_dt_for_period(from_dt, diff_days)
-        dt_all, Q_all = unify_deltas_between_dts(dt_all, Q_all)
-
-        dt_all = np.array(dt_all)
-        Q_all = np.array(Q_all)
+        dt_all, q_all = load_q_and_dt_for_period(from_dt, diff_days)
+        dt_all, q_all = unify_deltas_between_dts_v2(dt_all, q_all)
 
         unified_dates = np.vectorize(
             lambda dt: datetime.datetime(
@@ -70,12 +75,17 @@ if __name__ == "__main__":
             model="isotropic",
         )
 
-        diffs = calced_q_all - Q_all
+        (
+            corr,
+            estimated_delay,
+        ) = calc_delay(calced_q_all, q_all)
+
+        diffs = calced_q_all - q_all
 
         if args.real_value:
             axes[0].plot(
                 unified_dates,
-                Q_all,
+                q_all,
                 label=dt_all[0].strftime("%Y-%m-%d"),
                 color=colorlist[i],
             )
@@ -88,18 +98,29 @@ if __name__ == "__main__":
                 color=colorlist[i + 1],
             )
 
+        axes[0].set_xlabel("日時", fontsize=FONT_SIZE)
+        axes[0].set_ylabel("日射量 [kW/m$^2$]", fontsize=FONT_SIZE)
+        axes[0].set_title(f"ずれ時間: {estimated_delay}s", fontsize=FONT_SIZE)
+        axes[0].xaxis.set_major_formatter(mdates.DateFormatter("%H:%M:%S"))
+        axes[0].legend(fontsize=FONT_SIZE)
+        axes[0].tick_params(axis='both', which='major', labelsize=FONT_SIZE)
+
         axes[1].plot(
             unified_dates,
             diffs,
             label=dt_all[0].strftime("%Y-%m-%d"),
             color=colorlist[i],
         )
+        axes[1].set_xlabel("日時")
+        axes[1].set_ylabel("理論値 - 実測値 [kW/m$^2$]")
+        axes[1].xaxis.set_major_formatter(mdates.DateFormatter("%H:%M:%S"))
+        axes[1].legend()
 
         if args.save_daily:
             # 特定の日のグラフを_axに描画
             _ax.plot(
                 unified_dates,
-                Q_all,
+                q_all,
                 label=dt_all[0].strftime("%Y-%m-%d"),
                 color=colorlist[i],
             )
@@ -124,16 +145,6 @@ if __name__ == "__main__":
             plt.savefig(f"{dir}/{date_str}.png")
 
     [plot_daily(dt_str, i) for i, dt_str in enumerate(dts)]  # np.vectorizeで書くとバグる
-
-    axes[0].set_xlabel("日時")
-    axes[0].set_ylabel("日射量[kW/m^2]")
-    axes[0].xaxis.set_major_formatter(mdates.DateFormatter("%H:%M:%S"))
-    axes[0].legend()
-
-    axes[1].set_xlabel("日時")
-    axes[1].set_ylabel("理論値 - 実測値[kW/m^2]")
-    axes[1].xaxis.set_major_formatter(mdates.DateFormatter("%H:%M:%S"))
-    axes[1].legend()
 
     plt.show()
     # plt.savefig("./graph.png")
