@@ -62,6 +62,7 @@ def update_row_and_column_index(crr_row_idx, crr_column_idx, rows, columns):
 # > python3 partial_corr.py -dt 2022/04/08 -slide_seconds 10
 # > python3 partial_corr.py -dt 2022/04/08 -surface_tilt 26 -surface_azimuth 180.5 -h_racs -h_rpacs -h_cacs -h_cc
 # > python3 partial_corr.py -dt 2022/04/08 -surface_tilt 28 -surface_azimuth 178.28 -h_rpacs -h_cacs -h_cc -mask_from 07:20 -mask_to 17:10 -slide_seconds 100 -masking_strategy replace_zero
+# > python3 partial_corr.py -dt 2022/04/08 -surface_tilt 28 -surface_azimuth 178.28 -h_racs -h_rpacs -h_cacs -h_cc -mask_from 07:20 -mask_to 17:10 -masking_strategy replace_zero
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-dt", type=str)  # グラフ描画したい日付のリスト

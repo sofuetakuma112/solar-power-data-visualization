@@ -24,6 +24,7 @@ if __name__ == "__main__":
     parser.add_argument("-rv", "--real_value", action="store_true")  # 実測値を表示するか
     parser.add_argument("-tv", "--theoretical_value", action="store_true")  # 理論値を表示するか
     parser.add_argument("-sd", "--save_daily", action="store_true")
+    parser.add_argument("-wt", "--with_title", action="store_true")
 
     args = parser.parse_args()
     dts = np.array(args.dts)
@@ -100,7 +101,8 @@ if __name__ == "__main__":
 
         axes[0].set_xlabel("日時", fontsize=FONT_SIZE)
         axes[0].set_ylabel("日射量 [kW/m$^2$]", fontsize=FONT_SIZE)
-        axes[0].set_title(f"ずれ時間: {estimated_delay}s", fontsize=FONT_SIZE)
+        if args.with_title:
+            axes[0].set_title(f"ずれ時間: {estimated_delay}s", fontsize=FONT_SIZE)
         axes[0].xaxis.set_major_formatter(mdates.DateFormatter("%H:%M:%S"))
         axes[0].legend(fontsize=FONT_SIZE)
         axes[0].tick_params(axis='both', which='major', labelsize=FONT_SIZE)
