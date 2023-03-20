@@ -11,8 +11,9 @@ from utils.q import Q
 from utils.correlogram import unify_deltas_between_dts_v2
 from utils.colors import colorlist
 import matplotlib.dates as mdates
+from utils.init_matplotlib import init_rcParams, figsize_px_to_inch
 
-# > python3 mask_by_q_for_corr.py -dt 2022/04/08 -surface_tilt 28 -surface_azimuth 178.28 -threshold_q 0.2 -bundle_image
+# > python3 mask_by_q_for_corr.py -dt 2022/04/08 -surface_tilt 28 -surface_azimuth 178.28 -threshold_q 0.2 -bundle
 
 FONT_SIZE = 14
 
@@ -90,16 +91,15 @@ def calc_by_dt(from_dt, fig_image_path=""):
     ) = calc_delay(calced_q_all, masked_q_all)
     print(f"ずれ時間（実測値と計算値）: {estimated_delay_with_real_and_calc}[s]")
 
-    figsize_px = np.array([1280, 720])
-    dpi = 100
-    figsize_inch = figsize_px / dpi
+    figsize_inch = figsize_px_to_inch(np.array([1280, 720]))
+    plt.rcParams = init_rcParams(plt.rcParams, FONT_SIZE, figsize_inch)
 
     span = f"{mask_from.strftime('%Y-%m-%d %H:%M:%S')}〜{mask_to.strftime('%Y-%m-%d %H:%M:%S')}"
 
     if args.bundle:
         # 一枚にまとめてプロット
         # 相互相関を求める時
-        fig, axes = plt.subplots(1, 2, figsize=figsize_inch, dpi=dpi)
+        fig, axes = plt.subplots(1, 2)
         axes[0].plot(
             unified_dates,
             masked_q_all,
@@ -115,13 +115,11 @@ def calc_by_dt(from_dt, fig_image_path=""):
         )
         axes[0].set_title(
             f"ずれ時間: {estimated_delay_with_real_and_calc}[s]\n{span}\nq: {args.threshold_q}",
-            fontsize=FONT_SIZE,
         )
-        axes[0].set_xlabel("時刻", fontsize=FONT_SIZE)
-        axes[0].set_ylabel("日射量 [kW/m$^2$]", fontsize=FONT_SIZE)
+        axes[0].set_xlabel("時刻")
+        axes[0].set_ylabel("日射量 [kW/m$^2$]")
         axes[0].xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
-        axes[0].legend(fontsize=FONT_SIZE)
-        axes[0].tick_params(axis="both", which="major", labelsize=FONT_SIZE)
+        axes[0].legend()
 
         tmp = masked_q_all + args.threshold_q
         inverted_mask = np.logical_not(mask)
@@ -142,12 +140,11 @@ def calc_by_dt(from_dt, fig_image_path=""):
             linestyle="dashed",
             color=colorlist[1],
         )
-        axes[1].set_title(f"実測値と計算値の概形がどの程度一致しているか確認用", fontsize=FONT_SIZE)
-        axes[1].set_xlabel("時刻", fontsize=FONT_SIZE)
-        axes[1].set_ylabel("日射量 [kW/m$^2$]", fontsize=FONT_SIZE)
+        axes[1].set_title(f"実測値と計算値の概形がどの程度一致しているか確認用")
+        axes[1].set_xlabel("時刻")
+        axes[1].set_ylabel("日射量 [kW/m$^2$]")
         axes[1].xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
-        axes[1].legend(fontsize=FONT_SIZE)
-        axes[1].tick_params(axis="both", which="major", labelsize=FONT_SIZE)
+        axes[1].legend()
 
         if fig_image_path == "":
             plt.show()
@@ -156,7 +153,7 @@ def calc_by_dt(from_dt, fig_image_path=""):
             plt.savefig(fig_image_path)
     else:
         # Figure 1
-        fig1 = plt.figure(figsize=figsize_inch, dpi=dpi)
+        fig1 = plt.figure()
         ax1 = fig1.add_subplot(111)
         ax1.plot(
             unified_dates,
@@ -175,15 +172,14 @@ def calc_by_dt(from_dt, fig_image_path=""):
             f"ずれ時間: {estimated_delay_with_real_and_calc}[s]\n{span}\nq: {args.threshold_q}",
             fontsize=FONT_SIZE,
         )
-        ax1.set_xlabel("時刻", fontsize=FONT_SIZE)
-        ax1.set_ylabel("日射量 [kW/m$^2$]", fontsize=FONT_SIZE)
+        ax1.set_xlabel("時刻")
+        ax1.set_ylabel("日射量 [kW/m$^2$]")
         ax1.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
-        ax1.legend(fontsize=FONT_SIZE)
-        ax1.tick_params(axis="both", which="major", labelsize=FONT_SIZE)
+        ax1.legend()
         # fig1.savefig("figure1.png")
 
         # Figure 2
-        fig2 = plt.figure(figsize=figsize_inch, dpi=dpi)
+        fig2 = plt.figure()
         ax2 = fig2.add_subplot(111)
         tmp = masked_q_all + args.threshold_q
         inverted_mask = np.logical_not(mask)
@@ -203,12 +199,11 @@ def calc_by_dt(from_dt, fig_image_path=""):
             linestyle="dashed",
             color=colorlist[1],
         )
-        ax2.set_title(f"実測値と計算値の概形がどの程度一致しているか確認用", fontsize=FONT_SIZE)
-        ax2.set_xlabel("時刻", fontsize=FONT_SIZE)
-        ax2.set_ylabel("日射量 [kW/m$^2$]", fontsize=FONT_SIZE)
+        ax2.set_title(f"実測値と計算値の概形がどの程度一致しているか確認用")
+        ax2.set_xlabel("時刻")
+        ax2.set_ylabel("日射量 [kW/m$^2$]")
         ax2.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
-        ax2.legend(fontsize=FONT_SIZE)
-        ax2.tick_params(axis="both", which="major", labelsize=FONT_SIZE)
+        ax2.legend()
         # fig2.savefig("figure2.png")
 
         plt.show()
