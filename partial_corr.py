@@ -13,6 +13,7 @@ import matplotlib.dates as mdates
 from scipy import interpolate
 
 from utils.spline_model import get_natural_cubic_spline_model
+from utils.init_matplotlib import init_rcParams, figsize_px_to_inch
 
 FONT_SIZE = 14
 
@@ -247,11 +248,10 @@ if __name__ == "__main__":
         # rowsとcolumsをひっくり返す
         rows, columns = columns, rows
 
-    figsize_px = np.array([1280, 720])
-    dpi = 100
-    figsize_inch = figsize_px / dpi
+    figsize_inch = figsize_px_to_inch(np.array([1280, 720]))
+    plt.rcParams = init_rcParams(plt.rcParams, FONT_SIZE, figsize_inch)
 
-    fig, axes = plt.subplots(rows, columns, figsize=figsize_inch, dpi=dpi)
+    fig, axes = plt.subplots(rows, columns)
     fig.set_constrained_layout(True)
 
     if rows == 1 and columns == 1:
@@ -283,17 +283,13 @@ if __name__ == "__main__":
         )
         axes[crr_row_idx, crr_column_idx].set_title(
             f"実測値と計算値\nずれ時間: {estimated_delay_with_real_and_calc}[s]\n{span}",
-            fontsize=FONT_SIZE,
         )
-        axes[crr_row_idx, crr_column_idx].set_xlabel("時刻", fontsize=FONT_SIZE)
-        axes[crr_row_idx, crr_column_idx].set_ylabel("日射量 [kW/m$^2$]", fontsize=FONT_SIZE)
+        axes[crr_row_idx, crr_column_idx].set_xlabel("時刻")
+        axes[crr_row_idx, crr_column_idx].set_ylabel("日射量 [kW/m$^2$]")
         axes[crr_row_idx, crr_column_idx].xaxis.set_major_formatter(
             mdates.DateFormatter("%H:%M")
         )
-        axes[crr_row_idx, crr_column_idx].legend(fontsize=FONT_SIZE)
-        axes[crr_row_idx, crr_column_idx].tick_params(
-            axis="both", which="major", labelsize=FONT_SIZE
-        )
+        axes[crr_row_idx, crr_column_idx].legend()
 
         crr_row_idx, crr_column_idx = update_row_and_column_index(
             crr_row_idx, crr_column_idx, rows, columns
@@ -316,17 +312,13 @@ if __name__ == "__main__":
         )
         axes[crr_row_idx, crr_column_idx].set_title(
             f"実測値と計算値（{advance_or_delay(args.slide_seconds)}）\nずれ時間: {estimated_delay_with_real_and_calc_slided}[s]\n{span}",
-            fontsize=FONT_SIZE,
         )
-        axes[crr_row_idx, crr_column_idx].set_xlabel("時刻", fontsize=FONT_SIZE)
-        axes[crr_row_idx, crr_column_idx].set_ylabel("日射量 [kW/m$^2$]", fontsize=FONT_SIZE)
+        axes[crr_row_idx, crr_column_idx].set_xlabel("時刻")
+        axes[crr_row_idx, crr_column_idx].set_ylabel("日射量 [kW/m$^2$]")
         axes[crr_row_idx, crr_column_idx].xaxis.set_major_formatter(
             mdates.DateFormatter("%H:%M")
         )
-        axes[crr_row_idx, crr_column_idx].legend(fontsize=FONT_SIZE)
-        axes[crr_row_idx, crr_column_idx].tick_params(
-            axis="both", which="major", labelsize=FONT_SIZE
-        )
+        axes[crr_row_idx, crr_column_idx].legend()
 
         crr_row_idx, crr_column_idx = update_row_and_column_index(
             crr_row_idx, crr_column_idx, rows, columns
@@ -349,17 +341,13 @@ if __name__ == "__main__":
         )
         axes[crr_row_idx, crr_column_idx].set_title(
             f"実測値（スプライン）と計算値（{advance_or_delay(args.slide_seconds)}）\nずれ時間: {estimated_delay_with_real_spline_and_calc_slided}[s]\n{span}",
-            fontsize=FONT_SIZE,
         )
-        axes[crr_row_idx, crr_column_idx].set_xlabel("時刻", fontsize=FONT_SIZE)
-        axes[crr_row_idx, crr_column_idx].set_ylabel("日射量 [kW/m$^2$]", fontsize=FONT_SIZE)
+        axes[crr_row_idx, crr_column_idx].set_xlabel("時刻")
+        axes[crr_row_idx, crr_column_idx].set_ylabel("日射量 [kW/m$^2$]")
         axes[crr_row_idx, crr_column_idx].xaxis.set_major_formatter(
             mdates.DateFormatter("%H:%M")
         )
-        axes[crr_row_idx, crr_column_idx].legend(fontsize=FONT_SIZE)
-        axes[crr_row_idx, crr_column_idx].tick_params(
-            axis="both", which="major", labelsize=FONT_SIZE
-        )
+        axes[crr_row_idx, crr_column_idx].legend()
 
         crr_row_idx, crr_column_idx = update_row_and_column_index(
             crr_row_idx, crr_column_idx, rows, columns
@@ -389,17 +377,13 @@ if __name__ == "__main__":
         # )
         axes[crr_row_idx, crr_column_idx].set_title(
             f"計算値と計算値（{advance_or_delay(args.slide_seconds)}）\nずれ時間: {estimated_delay_with_calc_and_calc_slided}[s]\n{span}",
-            fontsize=FONT_SIZE,
         )
-        axes[crr_row_idx, crr_column_idx].set_xlabel("時刻", fontsize=FONT_SIZE)
-        axes[crr_row_idx, crr_column_idx].set_ylabel("日射量 [kW/m$^2$]", fontsize=FONT_SIZE)
+        axes[crr_row_idx, crr_column_idx].set_xlabel("時刻")
+        axes[crr_row_idx, crr_column_idx].set_ylabel("日射量 [kW/m$^2$]")
         axes[crr_row_idx, crr_column_idx].xaxis.set_major_formatter(
             mdates.DateFormatter("%H:%M")
         )
-        axes[crr_row_idx, crr_column_idx].legend(fontsize=FONT_SIZE)
-        axes[crr_row_idx, crr_column_idx].tick_params(
-            axis="both", which="major", labelsize=FONT_SIZE
-        )
+        axes[crr_row_idx, crr_column_idx].legend()
 
         crr_row_idx, crr_column_idx = update_row_and_column_index(
             crr_row_idx, crr_column_idx, rows, columns
@@ -419,13 +403,10 @@ if __name__ == "__main__":
             label=f"相互相関: {dt_all[0].strftime('%Y-%m-%d')}",
             color=colorlist[0],
         )
-        axes[crr_row_idx, crr_column_idx].set_title(f"実測値と計算値", fontsize=FONT_SIZE)
-        axes[crr_row_idx, crr_column_idx].set_xlabel("ラグ", fontsize=FONT_SIZE)
-        axes[crr_row_idx, crr_column_idx].set_ylabel("相互相関", fontsize=FONT_SIZE)
-        axes[crr_row_idx, crr_column_idx].legend(fontsize=FONT_SIZE)
-        axes[crr_row_idx, crr_column_idx].tick_params(
-            axis="both", which="major", labelsize=FONT_SIZE
-        )
+        axes[crr_row_idx, crr_column_idx].set_title(f"実測値と計算値")
+        axes[crr_row_idx, crr_column_idx].set_xlabel("ラグ")
+        axes[crr_row_idx, crr_column_idx].set_ylabel("相互相関")
+        axes[crr_row_idx, crr_column_idx].legend()
 
         crr_row_idx, crr_column_idx = update_row_and_column_index(
             crr_row_idx, crr_column_idx, rows, columns
@@ -446,14 +427,11 @@ if __name__ == "__main__":
             color=colorlist[0],
         )
         axes[crr_row_idx, crr_column_idx].set_title(
-            f"実測値と計算値（{advance_or_delay(args.slide_seconds)}）", fontsize=FONT_SIZE
+            f"実測値と計算値（{advance_or_delay(args.slide_seconds)}）"
         )
-        axes[crr_row_idx, crr_column_idx].set_xlabel("ラグ", fontsize=FONT_SIZE)
-        axes[crr_row_idx, crr_column_idx].set_ylabel("相互相関", fontsize=FONT_SIZE)
-        axes[crr_row_idx, crr_column_idx].legend(fontsize=FONT_SIZE)
-        axes[crr_row_idx, crr_column_idx].tick_params(
-            axis="both", which="major", labelsize=FONT_SIZE
-        )
+        axes[crr_row_idx, crr_column_idx].set_xlabel("ラグ")
+        axes[crr_row_idx, crr_column_idx].set_ylabel("相互相関")
+        axes[crr_row_idx, crr_column_idx].legend()
 
         crr_row_idx, crr_column_idx = update_row_and_column_index(
             crr_row_idx, crr_column_idx, rows, columns
@@ -475,14 +453,10 @@ if __name__ == "__main__":
         )
         axes[crr_row_idx, crr_column_idx].set_title(
             f"実測値（スプライン）と計算値（{advance_or_delay(args.slide_seconds)}）",
-            fontsize=FONT_SIZE,
         )
-        axes[crr_row_idx, crr_column_idx].set_xlabel("ラグ", fontsize=FONT_SIZE)
-        axes[crr_row_idx, crr_column_idx].set_ylabel("相互相関", fontsize=FONT_SIZE)
-        axes[crr_row_idx, crr_column_idx].legend(fontsize=FONT_SIZE)
-        axes[crr_row_idx, crr_column_idx].tick_params(
-            axis="both", which="major", labelsize=FONT_SIZE
-        )
+        axes[crr_row_idx, crr_column_idx].set_xlabel("ラグ")
+        axes[crr_row_idx, crr_column_idx].set_ylabel("相互相関")
+        axes[crr_row_idx, crr_column_idx].legend()
 
         crr_row_idx, crr_column_idx = update_row_and_column_index(
             crr_row_idx, crr_column_idx, rows, columns
@@ -503,14 +477,11 @@ if __name__ == "__main__":
             color=colorlist[0],
         )
         axes[crr_row_idx, crr_column_idx].set_title(
-            f"計算値と計算値（{advance_or_delay(args.slide_seconds)}）", fontsize=FONT_SIZE
+            f"計算値と計算値（{advance_or_delay(args.slide_seconds)}）"
         )
-        axes[crr_row_idx, crr_column_idx].set_xlabel("ラグ", fontsize=FONT_SIZE)
-        axes[crr_row_idx, crr_column_idx].set_ylabel("相互相関", fontsize=FONT_SIZE)
-        axes[crr_row_idx, crr_column_idx].legend(fontsize=FONT_SIZE)
-        axes[crr_row_idx, crr_column_idx].tick_params(
-            axis="both", which="major", labelsize=FONT_SIZE
-        )
+        axes[crr_row_idx, crr_column_idx].set_xlabel("ラグ")
+        axes[crr_row_idx, crr_column_idx].set_ylabel("相互相関")
+        axes[crr_row_idx, crr_column_idx].legend()
 
         crr_row_idx, crr_column_idx = update_row_and_column_index(
             crr_row_idx, crr_column_idx, rows, columns

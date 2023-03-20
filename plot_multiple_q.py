@@ -14,6 +14,8 @@ from utils.correlogram import (
 import matplotlib.dates as mdates
 from utils.colors import colorlist
 
+from utils.init_matplotlib import init_rcParams, figsize_px_to_inch
+
 FONT_SIZE = 14
 
 # > python3 plot_multiple_q.py -dts 2022/09/30 2022/04/08 2022/11/20 2022/05/03 2022/05/18 2022/10/30
@@ -34,11 +36,10 @@ if __name__ == "__main__":
     )(dts).argsort()
     dts = dts[sorted_indexes]
 
-    figsize_px = np.array([1280, 720])
-    dpi = 100
-    figsize_inch = figsize_px / dpi
+    figsize_inch = figsize_px_to_inch(np.array([1280, 720]))
+    plt.rcParams = init_rcParams(plt.rcParams, FONT_SIZE, figsize_inch)
 
-    axes = [plt.subplots(figsize=figsize_inch, dpi=dpi)[1] for _ in range(2)]
+    axes = [plt.subplots()[1] for _ in range(2)]
 
     def plot_daily(dt_str, i):
         if args.save_daily:
@@ -99,13 +100,12 @@ if __name__ == "__main__":
                 color=colorlist[i + 1],
             )
 
-        axes[0].set_xlabel("日時", fontsize=FONT_SIZE)
-        axes[0].set_ylabel("日射量 [kW/m$^2$]", fontsize=FONT_SIZE)
+        axes[0].set_xlabel("日時")
+        axes[0].set_ylabel("日射量 [kW/m$^2$]")
         if args.with_title:
-            axes[0].set_title(f"ずれ時間: {estimated_delay}s", fontsize=FONT_SIZE)
+            axes[0].set_title(f"ずれ時間: {estimated_delay}s")
         axes[0].xaxis.set_major_formatter(mdates.DateFormatter("%H:%M:%S"))
-        axes[0].legend(fontsize=FONT_SIZE)
-        axes[0].tick_params(axis='both', which='major', labelsize=FONT_SIZE)
+        axes[0].legend()
 
         axes[1].plot(
             unified_dates,
