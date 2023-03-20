@@ -23,6 +23,8 @@ def calc_by_dt(from_dt, fig_image_path=""):
     dt_all, q_all = load_q_and_dt_for_period(from_dt, diff_days)
     dt_all, q_all = unify_deltas_between_dts_v2(dt_all, q_all)
 
+    q_all_raw = np.copy(q_all)
+
     # 昇順で並んでいるかテストする
     sort_indexes = np.argsort(dt_all)
     if not np.allclose(sort_indexes, np.arange(0, dt_all.size, 1)):
@@ -74,9 +76,12 @@ def calc_by_dt(from_dt, fig_image_path=""):
     masked_q_all = q_all
     masked_dt_all = dt_all
 
-    # 4. 「実測値列 - 指定したq」を求めて、実測値列の最小値を0にする
-    masked_q_all = masked_q_all - args.threshold_q
-    masked_q_all[masked_q_all < 0] = 0
+    # mask_from, mask_toの外側をすべての0にした
+    masked_q_all_and_replaced_zero = np.copy(masked_q_all)
+
+    # mask_from ~ mask_toのすべての点で「実測値列 - 指定したq」を求めて、マイナスになった箇所は0にする
+    masked_q_all_and_subed = masked_q_all - args.threshold_q
+    masked_q_all_and_subed[masked_q_all_and_subed < 0] = 0
 
     unified_dates = np.vectorize(
         lambda dt: datetime.datetime(
@@ -87,64 +92,114 @@ def calc_by_dt(from_dt, fig_image_path=""):
     # np.correlate(M, N): Mが0パディングされる側、Nがスライドする側
     (
         _,
-        estimated_delay_with_real_and_calc,
-    ) = calc_delay(calced_q_all, masked_q_all)
-    print(f"ずれ時間（実測値と計算値）: {estimated_delay_with_real_and_calc}[s]")
+        estimated_delay_with_subed,
+    ) = calc_delay(calced_q_all, masked_q_all_and_subed)
+    print(f"ずれ時間（指定したqだけ実測値を引いて最小値0にした実測データを使用）: {estimated_delay_with_subed}[s]")
 
-    figsize_inch = figsize_px_to_inch(np.array([1280, 720]))
-    plt.rcParams = init_rcParams(plt.rcParams, FONT_SIZE, figsize_inch)
+    (
+        _,
+        estimated_delay_with_replaced_zero,
+    ) = calc_delay(calced_q_all, masked_q_all_and_replaced_zero)
+    print(f"ずれ時間（指定したq以下の点をすべて0に置換した実測データを使用）: {estimated_delay_with_replaced_zero}[s]")
 
     span = f"{mask_from.strftime('%Y-%m-%d %H:%M:%S')}〜{mask_to.strftime('%Y-%m-%d %H:%M:%S')}"
 
     if args.bundle:
         # 一枚にまとめてプロット
         # 相互相関を求める時
-        fig, axes = plt.subplots(1, 2)
-        axes[0].plot(
+        figsize_inch = figsize_px_to_inch(np.array([1920, 1080]))
+        plt.rcParams = init_rcParams(plt.rcParams, 16, figsize_inch)
+
+        fig, axes = plt.subplots(2, 2)
+        axes[0, 0].plot(
             unified_dates,
-            masked_q_all,
+            masked_q_all_and_subed,
             label=f"実測値: {dt_all[0].strftime('%Y-%m-%d')}",
             color=colorlist[0],
         )
-        axes[0].plot(
+        axes[0, 0].plot(
             unified_dates,
             calced_q_all,
             label=f"計算値: {dt_all[0].strftime('%Y-%m-%d')}",
             linestyle="dashed",
             color=colorlist[1],
         )
-        axes[0].set_title(
-            f"ずれ時間: {estimated_delay_with_real_and_calc}[s]\n{span}\nq: {args.threshold_q}",
+        axes[0, 0].set_title(
+            f"ずれ時間: {estimated_delay_with_subed}[s]\n{span}\nq: {args.threshold_q}",
         )
-        axes[0].set_xlabel("時刻")
-        axes[0].set_ylabel("日射量 [kW/m$^2$]")
-        axes[0].xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
-        axes[0].legend()
+        axes[0, 0].set_xlabel("時刻")
+        axes[0, 0].set_ylabel("日射量 [kW/m$^2$]")
+        axes[0, 0].xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
+        axes[0, 0].legend()
 
-        tmp = masked_q_all + args.threshold_q
+        tmp = masked_q_all_and_subed + args.threshold_q
         inverted_mask = np.logical_not(mask)
         np.putmask(tmp, inverted_mask, tmp * np.nan)
-        masked_q_all = tmp
+        masked_q_all_and_subed = tmp
 
         # 実測値と計算値
-        axes[1].plot(
+        axes[0, 1].plot(
             unified_dates,
-            masked_q_all,
+            masked_q_all_and_subed,
             label=f"実測値: {dt_all[0].strftime('%Y-%m-%d')}",
             color=colorlist[0],
         )
-        axes[1].plot(
+        axes[0, 1].plot(
             unified_dates,
             calced_q_all,
             label=f"計算値: {dt_all[0].strftime('%Y-%m-%d')}",
             linestyle="dashed",
             color=colorlist[1],
         )
-        axes[1].set_title(f"実測値と計算値の概形がどの程度一致しているか確認用")
-        axes[1].set_xlabel("時刻")
-        axes[1].set_ylabel("日射量 [kW/m$^2$]")
-        axes[1].xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
-        axes[1].legend()
+        axes[0, 1].set_title(f"実測値をしきい値のqだけ上にスライドさせたもの\n{span}以外は非表示にしている")
+        axes[0, 1].set_xlabel("時刻")
+        axes[0, 1].set_ylabel("日射量 [kW/m$^2$]")
+        axes[0, 1].xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
+        axes[0, 1].legend()
+
+        axes[1, 0].plot(
+            unified_dates,
+            masked_q_all_and_replaced_zero,
+            label=f"実測値: {dt_all[0].strftime('%Y-%m-%d')}",
+            color=colorlist[0],
+        )
+        axes[1, 0].plot(
+            unified_dates,
+            calced_q_all,
+            label=f"計算値: {dt_all[0].strftime('%Y-%m-%d')}",
+            linestyle="dashed",
+            color=colorlist[1],
+        )
+        axes[1, 0].set_title(
+            f"ずれ時間: {estimated_delay_with_replaced_zero}[s]\n{span}\nq: {args.threshold_q}",
+        )
+        axes[1, 0].set_xlabel("時刻")
+        axes[1, 0].set_ylabel("日射量 [kW/m$^2$]")
+        axes[1, 0].xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
+        axes[1, 0].legend()
+
+        axes[1, 1].plot(
+            unified_dates,
+            q_all_raw,
+            label=f"実測値: {dt_all[0].strftime('%Y-%m-%d')}",
+            color=colorlist[0],
+        )
+        axes[1, 1].plot(
+            unified_dates,
+            calced_q_all,
+            label=f"計算値: {dt_all[0].strftime('%Y-%m-%d')}",
+            linestyle="dashed",
+            color=colorlist[1],
+        )
+        axes[1, 1].set_title(
+            f"実測データと計算データ比較用",
+        )
+        axes[1, 1].set_xlabel("時刻")
+        axes[1, 1].set_ylabel("日射量 [kW/m$^2$]")
+        axes[1, 1].xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
+        axes[1, 1].legend()
+
+        plt.tight_layout()
 
         if fig_image_path == "":
             plt.show()
@@ -153,11 +208,14 @@ def calc_by_dt(from_dt, fig_image_path=""):
             plt.savefig(fig_image_path)
     else:
         # Figure 1
+        figsize_inch = figsize_px_to_inch(np.array([1280, 720]))
+        plt.rcParams = init_rcParams(plt.rcParams, FONT_SIZE, figsize_inch)
+
         fig1 = plt.figure()
         ax1 = fig1.add_subplot(111)
         ax1.plot(
             unified_dates,
-            masked_q_all,
+            masked_q_all_and_subed,
             label=f"実測値: {dt_all[0].strftime('%Y-%m-%d')}",
             color=colorlist[0],
         )
@@ -169,8 +227,7 @@ def calc_by_dt(from_dt, fig_image_path=""):
             color=colorlist[1],
         )
         ax1.set_title(
-            f"ずれ時間: {estimated_delay_with_real_and_calc}[s]\n{span}\nq: {args.threshold_q}",
-            fontsize=FONT_SIZE,
+            f"ずれ時間: {estimated_delay_with_subed}[s]\n{span}\nq: {args.threshold_q}",
         )
         ax1.set_xlabel("時刻")
         ax1.set_ylabel("日射量 [kW/m$^2$]")
@@ -181,14 +238,14 @@ def calc_by_dt(from_dt, fig_image_path=""):
         # Figure 2
         fig2 = plt.figure()
         ax2 = fig2.add_subplot(111)
-        tmp = masked_q_all + args.threshold_q
+        tmp = masked_q_all_and_subed + args.threshold_q
         inverted_mask = np.logical_not(mask)
         np.putmask(tmp, inverted_mask, tmp * np.nan)
-        masked_q_all = tmp
+        masked_q_all_and_subed = tmp
 
         ax2.plot(
             unified_dates,
-            masked_q_all,
+            masked_q_all_and_subed,
             label=f"実測値: {dt_all[0].strftime('%Y-%m-%d')}",
             color=colorlist[0],
         )
@@ -205,6 +262,30 @@ def calc_by_dt(from_dt, fig_image_path=""):
         ax2.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
         ax2.legend()
         # fig2.savefig("figure2.png")
+
+        fig3 = plt.figure()
+        ax3 = fig3.add_subplot(111)
+
+        ax3.plot(
+            unified_dates,
+            masked_q_all_and_replaced_zero,
+            label=f"実測値: {dt_all[0].strftime('%Y-%m-%d')}",
+            color=colorlist[0],
+        )
+        ax3.plot(
+            unified_dates,
+            calced_q_all,
+            label=f"計算値: {dt_all[0].strftime('%Y-%m-%d')}",
+            linestyle="dashed",
+            color=colorlist[1],
+        )
+        ax3.set_title(
+            f"ずれ時間: {estimated_delay_with_replaced_zero}[s]\n{span}\nq: {args.threshold_q}",
+        )
+        ax3.set_xlabel("時刻")
+        ax3.set_ylabel("日射量 [kW/m$^2$]")
+        ax3.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
+        ax3.legend()
 
         plt.show()
 
