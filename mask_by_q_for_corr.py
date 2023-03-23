@@ -12,13 +12,40 @@ from utils.correlogram import unify_deltas_between_dts_v2
 from utils.colors import colorlist
 import matplotlib.dates as mdates
 from utils.init_matplotlib import init_rcParams, figsize_px_to_inch
+import multiprocessing
 
-# > python3 mask_by_q_for_corr.py -dt 2022/04/08 -surface_tilt 28 -surface_azimuth 178.28 -threshold_q 0.2 -bundle
+# > python3 mask_by_q_for_corr.py -dt 2022/04/08 -surface_tilt 28 -surface_azimuth 178.28 -threshold_q 0.2 -corr_split_t 12:00:00
 
 FONT_SIZE = 14
 
 
-def calc_by_dt(from_dt, fig_image_path=""):
+def process_datetime(dt_str, split_t_str):
+    year, month, day = dt_str.split("/")
+    hour, minute, second = split_t_str.split(":")
+
+    from_dt = datetime.datetime(
+        int(year),
+        int(month),
+        int(day),
+    )
+    if split_t_str == "24:00:00":
+        corr_split_dt = datetime.datetime(
+            int(year), int(month), int(day)
+        ) + datetime.timedelta(days=1)
+    else:
+        corr_split_dt = datetime.datetime(
+            int(year),
+            int(month),
+            int(day),
+            int(hour),
+            int(minute),
+            int(second),
+        )
+
+    return from_dt, corr_split_dt
+
+
+def calc_by_dt(from_dt, corr_split_dt, fig_dir_path=""):
     diff_days = 1.0
     dt_all, q_all = load_q_and_dt_for_period(from_dt, diff_days)
     dt_all, q_all = unify_deltas_between_dts_v2(dt_all, q_all)
@@ -42,7 +69,7 @@ def calc_by_dt(from_dt, fig_image_path=""):
 
     # 1. 12時の左側と右側でそれぞれ1点ずつ指定したqの値に最も近い点のタイムスタンプを探す
     diffs_from_noon = dt_all - datetime.datetime(
-        int(year), int(month), int(day), 12, 0, 0
+        int(from_dt.year), int(from_dt.month), int(from_dt.day), 12, 0, 0
     )
     noon_idx = np.argmin(
         np.vectorize(lambda diff_delta: np.abs(diff_delta.total_seconds()))(
@@ -53,11 +80,13 @@ def calc_by_dt(from_dt, fig_image_path=""):
     print(f"dt_all[noon_idx]: {dt_all[noon_idx]}")
 
     # 2.a 午前で実測値が指定した値に最も近いときのtimestampを取得する
-    left_timestamp_idx = np.argmin(np.abs(q_all[:noon_idx] - args.threshold_q))
+    q_all_copy = np.copy(q_all)
+    left_timestamp_idx = np.argmin(np.abs(q_all_copy[:noon_idx] - args.threshold_q))
     mask_from = dt_all[left_timestamp_idx]
     # 2.b 午後で実測値が指定した値に最も近いときのtimestampを取得する
+    q_all_copy = np.copy(q_all)
     right_timestamp_idx = (
-        np.argmin(np.abs(q_all[noon_idx:] - args.threshold_q)) + noon_idx
+        np.argmin(np.abs(q_all_copy[noon_idx:] - args.threshold_q)) + noon_idx
     )
     mask_to = dt_all[right_timestamp_idx]
 
@@ -94,7 +123,7 @@ def calc_by_dt(from_dt, fig_image_path=""):
         _,
         estimated_delay_with_subed,
     ) = calc_delay(calced_q_all, masked_q_all_and_subed)
-    print(f"ずれ時間（指定したqだけ実測値を引いて最小値0にした実測データを使用）: {estimated_delay_with_subed}[s]")
+    print(f"ずれ時間（指定したqだけ実測値を引いた実測データを使用）: {estimated_delay_with_subed}[s]")
 
     (
         _,
@@ -104,190 +133,291 @@ def calc_by_dt(from_dt, fig_image_path=""):
 
     span = f"{mask_from.strftime('%Y-%m-%d %H:%M:%S')}〜{mask_to.strftime('%Y-%m-%d %H:%M:%S')}"
 
-    if args.bundle:
-        # 一枚にまとめてプロット
-        # 相互相関を求める時
-        figsize_inch = figsize_px_to_inch(np.array([1920, 1080]))
-        plt.rcParams = init_rcParams(plt.rcParams, 16, figsize_inch)
+    figsize_inch = figsize_px_to_inch(np.array([1920, 1080]))
+    plt.rcParams = init_rcParams(plt.rcParams, 16, figsize_inch)
 
-        fig, axes = plt.subplots(2, 2)
-        axes[0, 0].plot(
+    fig1 = plt.figure()
+    ax1 = fig1.add_subplot(1, 1, 1)
+    ax1.plot(
+        unified_dates,
+        masked_q_all_and_subed,
+        label=f"実測値: {dt_all[0].strftime('%Y-%m-%d')}",
+        color=colorlist[0],
+    )
+    ax1.plot(
+        unified_dates,
+        calced_q_all,
+        label=f"計算値: {dt_all[0].strftime('%Y-%m-%d')}",
+        linestyle="dashed",
+        color=colorlist[1],
+    )
+    ax1.set_title(
+        f"ずれ時間: {estimated_delay_with_subed}[s]\n{span}\nq: {args.threshold_q}",
+    )
+    ax1.set_xlabel("時刻")
+    ax1.set_ylabel("日射量 [kW/m$^2$]")
+    ax1.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
+    ax1.legend()
+    if fig_dir_path != "":
+        fig1.savefig(f"{fig_dir_path}/1.png")
+
+    tmp = masked_q_all_and_subed + args.threshold_q
+    inverted_mask = np.logical_not(mask)
+    np.putmask(tmp, inverted_mask, tmp * np.nan)
+    masked_q_all_and_added = tmp
+
+    fig2 = plt.figure()
+    ax2 = fig2.add_subplot(1, 1, 1)
+    # 実測値と計算値
+    ax2.plot(
+        unified_dates,
+        masked_q_all_and_added,
+        label=f"実測値: {dt_all[0].strftime('%Y-%m-%d')}",
+        color=colorlist[0],
+    )
+    ax2.plot(
+        unified_dates,
+        calced_q_all,
+        label=f"計算値: {dt_all[0].strftime('%Y-%m-%d')}",
+        linestyle="dashed",
+        color=colorlist[1],
+    )
+    ax2.set_title(f"実測値をしきい値のqだけ上にスライドさせたもの\n{span}以外は非表示にしている")
+    ax2.set_xlabel("時刻")
+    ax2.set_ylabel("日射量 [kW/m$^2$]")
+    ax2.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
+    ax2.legend()
+
+    if fig_dir_path != "":
+        fig2.savefig(f"{fig_dir_path}/2.png")
+
+    fig3 = plt.figure()
+    ax3 = fig3.add_subplot(1, 1, 1)
+    ax3.plot(
+        unified_dates,
+        masked_q_all_and_replaced_zero,
+        label=f"実測値: {dt_all[0].strftime('%Y-%m-%d')}",
+        color=colorlist[0],
+    )
+    ax3.plot(
+        unified_dates,
+        calced_q_all,
+        label=f"計算値: {dt_all[0].strftime('%Y-%m-%d')}",
+        linestyle="dashed",
+        color=colorlist[1],
+    )
+    ax3.set_title(
+        f"ずれ時間: {estimated_delay_with_replaced_zero}[s]\n{span}\nq: {args.threshold_q}",
+    )
+    ax3.set_xlabel("時刻")
+    ax3.set_ylabel("日射量 [kW/m$^2$]")
+    ax3.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
+    ax3.legend()
+    if fig_dir_path != "":
+        fig3.savefig(f"{fig_dir_path}/3.png")
+
+    fig4 = plt.figure()
+    ax4 = fig4.add_subplot(1, 1, 1)
+    ax4.plot(
+        unified_dates,
+        q_all_raw,
+        label=f"実測値: {dt_all[0].strftime('%Y-%m-%d')}",
+        color=colorlist[0],
+    )
+    ax4.plot(
+        unified_dates,
+        calced_q_all,
+        label=f"計算値: {dt_all[0].strftime('%Y-%m-%d')}",
+        linestyle="dashed",
+        color=colorlist[1],
+    )
+    ax4.set_title(
+        f"実測データと計算データ比較用",
+    )
+    ax4.set_xlabel("時刻")
+    ax4.set_ylabel("日射量 [kW/m$^2$]")
+    ax4.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
+    ax4.legend()
+    if fig_dir_path != "":
+        fig4.savefig(f"{fig_dir_path}/4.png")
+
+    # 1日すべて使う + 理論データも指定したしきい値だけ減算
+    calced_q_all_subbed = calced_q_all - args.threshold_q
+    calced_q_all_subbed[calced_q_all_subbed < 0] = 0
+    (
+        _,
+        ed_with_subed_real_and_calc,
+    ) = calc_delay(calced_q_all_subbed, masked_q_all_and_subed)
+    print(f"ずれ時間（指定したqだけ実測値と理論値を引いた実測データを使用）: {ed_with_subed_real_and_calc}[s]")
+
+    fig5 = plt.figure()
+    ax5 = fig5.add_subplot(1, 1, 1)
+    ax5.plot(
+        unified_dates,
+        masked_q_all_and_subed,
+        label=f"実測値: {dt_all[0].strftime('%Y-%m-%d')}",
+        color=colorlist[0],
+    )
+    ax5.plot(
+        unified_dates,
+        calced_q_all_subbed,
+        label=f"計算値: {dt_all[0].strftime('%Y-%m-%d')}",
+        linestyle="dashed",
+        color=colorlist[1],
+    )
+    ax5.set_title(
+        f"ずれ時間: {ed_with_subed_real_and_calc}[s]\n{span}\nq: {args.threshold_q}",
+    )
+    ax5.set_xlabel("時刻")
+    ax5.set_ylabel("日射量 [kW/m$^2$]")
+    ax5.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
+    ax5.legend()
+    if fig_dir_path != "":
+        fig5.savefig(f"{fig_dir_path}/5.png")
+
+    def plot_data_and_calced(
+        ax, unified_dates, data, calced, label_data, label_calced, title, colorlist
+    ):
+        ax.plot(unified_dates, data, label=label_data, color=colorlist[0])
+        ax.plot(
             unified_dates,
-            masked_q_all_and_subed,
-            label=f"実測値: {dt_all[0].strftime('%Y-%m-%d')}",
-            color=colorlist[0],
-        )
-        axes[0, 0].plot(
-            unified_dates,
-            calced_q_all,
-            label=f"計算値: {dt_all[0].strftime('%Y-%m-%d')}",
+            calced,
+            label=label_calced,
             linestyle="dashed",
             color=colorlist[1],
         )
-        axes[0, 0].set_title(
-            f"ずれ時間: {estimated_delay_with_subed}[s]\n{span}\nq: {args.threshold_q}",
-        )
-        axes[0, 0].set_xlabel("時刻")
-        axes[0, 0].set_ylabel("日射量 [kW/m$^2$]")
-        axes[0, 0].xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
-        axes[0, 0].legend()
+        ax.set_title(title)
+        ax.set_xlabel("時刻")
+        ax.set_ylabel("日射量 [kW/m$^2$]")
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
+        ax.legend()
 
-        tmp = masked_q_all_and_subed + args.threshold_q
-        inverted_mask = np.logical_not(mask)
-        np.putmask(tmp, inverted_mask, tmp * np.nan)
-        masked_q_all_and_subed = tmp
+    split_indices = np.where(dt_all == corr_split_dt)[0]  # corr_split_dtのidx
+    if len(split_indices) != 0:
+        split_idx = split_indices[0]
+        masked_q_all_copy = np.copy(masked_q_all)
+        masked_q_all_copy[:split_idx] = 0
+        right_masked_q_all = masked_q_all_copy
 
-        # 実測値と計算値
-        axes[0, 1].plot(
+        masked_q_all_copy = np.copy(masked_q_all)
+        masked_q_all_copy[split_idx:] = 0
+        left_masked_q_all = masked_q_all_copy
+
+        right_masked_q_all_subbed = right_masked_q_all - args.threshold_q
+        left_masked_q_all_subbed = left_masked_q_all - args.threshold_q
+
+        right_masked_q_all_subbed[right_masked_q_all_subbed < 0] = 0
+        left_masked_q_all_subbed[left_masked_q_all_subbed < 0] = 0
+
+        _, ed_left_subed_real = calc_delay(calced_q_all, left_masked_q_all_subbed)
+        _, ed_right_subed_real = calc_delay(calced_q_all, right_masked_q_all_subbed)
+        print(f"ずれ時間（指定したqだけ実測値を引いた実測データの左側を使用）: {ed_left_subed_real}[s]")
+        print(f"ずれ時間（指定したqだけ実測値を引いた実測データの右側を使用）: {ed_right_subed_real}[s]")
+
+        # 指定した時間で区切って2つ相互相関を求める + 実測データをしきい値分減算する
+        fig6, (ax6_1, ax6_2) = plt.subplots(1, 2)
+
+        plot_data_and_calced(
+            ax6_1,
             unified_dates,
-            masked_q_all_and_subed,
-            label=f"実測値: {dt_all[0].strftime('%Y-%m-%d')}",
-            color=colorlist[0],
-        )
-        axes[0, 1].plot(
-            unified_dates,
+            left_masked_q_all_subbed,
             calced_q_all,
-            label=f"計算値: {dt_all[0].strftime('%Y-%m-%d')}",
-            linestyle="dashed",
-            color=colorlist[1],
+            f"実測値(corr_split_dtの左側): {dt_all[0].strftime('%Y-%m-%d')}",
+            f"計算値: {dt_all[0].strftime('%Y-%m-%d')}",
+            f"ずれ時間: {ed_left_subed_real}[s]\n{span}\nq: {args.threshold_q}",
+            colorlist,
         )
-        axes[0, 1].set_title(f"実測値をしきい値のqだけ上にスライドさせたもの\n{span}以外は非表示にしている")
-        axes[0, 1].set_xlabel("時刻")
-        axes[0, 1].set_ylabel("日射量 [kW/m$^2$]")
-        axes[0, 1].xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
-        axes[0, 1].legend()
-
-        axes[1, 0].plot(
+        plot_data_and_calced(
+            ax6_2,
             unified_dates,
-            masked_q_all_and_replaced_zero,
-            label=f"実測値: {dt_all[0].strftime('%Y-%m-%d')}",
-            color=colorlist[0],
-        )
-        axes[1, 0].plot(
-            unified_dates,
+            right_masked_q_all_subbed,
             calced_q_all,
-            label=f"計算値: {dt_all[0].strftime('%Y-%m-%d')}",
-            linestyle="dashed",
-            color=colorlist[1],
+            f"実測値(corr_split_dtの右側): {dt_all[0].strftime('%Y-%m-%d')}",
+            f"計算値: {dt_all[0].strftime('%Y-%m-%d')}",
+            f"ずれ時間: {ed_right_subed_real}[s]\n{span}\nq: {args.threshold_q}",
+            colorlist,
         )
-        axes[1, 0].set_title(
-            f"ずれ時間: {estimated_delay_with_replaced_zero}[s]\n{span}\nq: {args.threshold_q}",
-        )
-        axes[1, 0].set_xlabel("時刻")
-        axes[1, 0].set_ylabel("日射量 [kW/m$^2$]")
-        axes[1, 0].xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
-        axes[1, 0].legend()
+        if fig_dir_path != "":
+            fig6.savefig(f"{fig_dir_path}/6.png")
 
-        axes[1, 1].plot(
-            unified_dates,
-            q_all_raw,
-            label=f"実測値: {dt_all[0].strftime('%Y-%m-%d')}",
-            color=colorlist[0],
+        # 指定した時間で区切って2つ相互相関を求める + 実測データと計算データをしきい値分減算する
+        _, ed_left_subed_real_and_calc = calc_delay(
+            calced_q_all_subbed, left_masked_q_all_subbed
         )
-        axes[1, 1].plot(
+        _, ed_right_subed_real_and_calc = calc_delay(
+            calced_q_all_subbed, right_masked_q_all_subbed
+        )
+        print(f"ずれ時間（指定したqだけ実測値と計算値を引いた実測データの左側を使用）: {ed_left_subed_real_and_calc}[s]")
+        print(f"ずれ時間（指定したqだけ実測値と計算値を引いた実測データの右側を使用）: {ed_right_subed_real_and_calc}[s]")
+
+        fig7, (ax7_1, ax7_2) = plt.subplots(1, 2)
+        plot_data_and_calced(
+            ax7_1,
             unified_dates,
+            left_masked_q_all_subbed,
+            calced_q_all_subbed,
+            f"実測値(corr_split_dtの左側): {dt_all[0].strftime('%Y-%m-%d')}",
+            f"計算値(しきい値だけ減算): {dt_all[0].strftime('%Y-%m-%d')}",
+            f"ずれ時間: {ed_left_subed_real_and_calc}[s]\n{span}\nq: {args.threshold_q}",
+            colorlist,
+        )
+        plot_data_and_calced(
+            ax7_2,
+            unified_dates,
+            right_masked_q_all_subbed,
+            calced_q_all_subbed,
+            f"実測値(corr_split_dtの右側): {dt_all[0].strftime('%Y-%m-%d')}",
+            f"計算値(しきい値だけ減算): {dt_all[0].strftime('%Y-%m-%d')}",
+            f"ずれ時間: {ed_right_subed_real_and_calc}[s]\n{span}\nq: {args.threshold_q}",
+            colorlist,
+        )
+        if fig_dir_path != "":
+            fig7.savefig(f"{fig_dir_path}/7.png")
+
+        # 指定した時間で区切って2つ相互相関を求める
+        _, ed_left = calc_delay(calced_q_all, left_masked_q_all)
+        _, ed_right = calc_delay(calced_q_all, right_masked_q_all)
+        print(f"ずれ時間（指定したq以下の点をすべて0に置換した実測データの左側を使用）: {ed_left}[s]")
+        print(f"ずれ時間（指定したq以下の点をすべて0に置換した実測データの右側を使用）: {ed_right}[s]")
+
+        fig8, (ax8_1, ax8_2) = plt.subplots(1, 2)
+        plot_data_and_calced(
+            ax8_1,
+            unified_dates,
+            left_masked_q_all,
             calced_q_all,
-            label=f"計算値: {dt_all[0].strftime('%Y-%m-%d')}",
-            linestyle="dashed",
-            color=colorlist[1],
+            f"実測値(corr_split_dtの左側): {dt_all[0].strftime('%Y-%m-%d')}",
+            f"計算値: {dt_all[0].strftime('%Y-%m-%d')}",
+            f"ずれ時間: {ed_left}[s]\n{span}\nq: {args.threshold_q}",
+            colorlist,
         )
-        axes[1, 1].set_title(
-            f"実測データと計算データ比較用",
-        )
-        axes[1, 1].set_xlabel("時刻")
-        axes[1, 1].set_ylabel("日射量 [kW/m$^2$]")
-        axes[1, 1].xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
-        axes[1, 1].legend()
-
-        plt.tight_layout()
-
-        if fig_image_path == "":
-            plt.show()
-        else:
-            # 新しい figure を画像として保存する
-            plt.savefig(fig_image_path)
-    else:
-        # Figure 1
-        figsize_inch = figsize_px_to_inch(np.array([1280, 720]))
-        plt.rcParams = init_rcParams(plt.rcParams, FONT_SIZE, figsize_inch)
-
-        fig1 = plt.figure()
-        ax1 = fig1.add_subplot(111)
-        ax1.plot(
+        plot_data_and_calced(
+            ax8_2,
             unified_dates,
-            masked_q_all_and_subed,
-            label=f"実測値: {dt_all[0].strftime('%Y-%m-%d')}",
-            color=colorlist[0],
-        )
-        ax1.plot(
-            unified_dates,
+            right_masked_q_all,
             calced_q_all,
-            label=f"計算値: {dt_all[0].strftime('%Y-%m-%d')}",
-            linestyle="dashed",
-            color=colorlist[1],
+            f"実測値(corr_split_dtの右側): {dt_all[0].strftime('%Y-%m-%d')}",
+            f"計算値: {dt_all[0].strftime('%Y-%m-%d')}",
+            f"ずれ時間: {ed_right}[s]\n{span}\nq: {args.threshold_q}",
+            colorlist,
         )
-        ax1.set_title(
-            f"ずれ時間: {estimated_delay_with_subed}[s]\n{span}\nq: {args.threshold_q}",
-        )
-        ax1.set_xlabel("時刻")
-        ax1.set_ylabel("日射量 [kW/m$^2$]")
-        ax1.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
-        ax1.legend()
-        # fig1.savefig("figure1.png")
+        if fig_dir_path != "":
+            fig7.savefig(f"{fig_dir_path}/8.png")
 
-        # Figure 2
-        fig2 = plt.figure()
-        ax2 = fig2.add_subplot(111)
-        tmp = masked_q_all_and_subed + args.threshold_q
-        inverted_mask = np.logical_not(mask)
-        np.putmask(tmp, inverted_mask, tmp * np.nan)
-        masked_q_all_and_subed = tmp
+    plt.tight_layout()
 
-        ax2.plot(
-            unified_dates,
-            masked_q_all_and_subed,
-            label=f"実測値: {dt_all[0].strftime('%Y-%m-%d')}",
-            color=colorlist[0],
-        )
-        ax2.plot(
-            unified_dates,
-            calced_q_all,
-            label=f"計算値: {dt_all[0].strftime('%Y-%m-%d')}",
-            linestyle="dashed",
-            color=colorlist[1],
-        )
-        ax2.set_title(f"実測値と計算値の概形がどの程度一致しているか確認用")
-        ax2.set_xlabel("時刻")
-        ax2.set_ylabel("日射量 [kW/m$^2$]")
-        ax2.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
-        ax2.legend()
-        # fig2.savefig("figure2.png")
-
-        fig3 = plt.figure()
-        ax3 = fig3.add_subplot(111)
-
-        ax3.plot(
-            unified_dates,
-            masked_q_all_and_replaced_zero,
-            label=f"実測値: {dt_all[0].strftime('%Y-%m-%d')}",
-            color=colorlist[0],
-        )
-        ax3.plot(
-            unified_dates,
-            calced_q_all,
-            label=f"計算値: {dt_all[0].strftime('%Y-%m-%d')}",
-            linestyle="dashed",
-            color=colorlist[1],
-        )
-        ax3.set_title(
-            f"ずれ時間: {estimated_delay_with_replaced_zero}[s]\n{span}\nq: {args.threshold_q}",
-        )
-        ax3.set_xlabel("時刻")
-        ax3.set_ylabel("日射量 [kW/m$^2$]")
-        ax3.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
-        ax3.legend()
-
+    if not args.save_fig:
         plt.show()
+
+
+def create_dir_path(split_t_str, th_q, dt_str):
+    # splitに使用したtime: st
+    # 理論データに対して減算した値: tsv
+    # 実測データに対して減算した値: rsv
+    # しきい値のq: thq
+    fig_dir_path = f"{OUTPUT_DIR_PATH}/st-{split_t_str}_thq-{th_q}/{dt_str.replace('/', '-')}"  # 図の保存先ディレクトリ
+
+    return fig_dir_path
 
 
 USER_INPUT_JSON_FILE_PATH = f"data/json/calc_corr_by_day/user_input.json"
@@ -302,40 +432,57 @@ if __name__ == "__main__":
     parser.add_argument("-surface_tilt", type=int, default=22)
     parser.add_argument("-surface_azimuth", type=float, default=185.0)
     parser.add_argument("-threshold_q", type=float, default=0.2)
-    parser.add_argument("-bundle", action="store_true")
+    parser.add_argument(
+        "-corr_split_t", type=str, default="24:00:00"
+    )  # 相互相関の計算を分割するタイムスタンプ
+    parser.add_argument("-sub_calc_q", action="store_true")  # 計算値もしきい値分減算するか
+    parser.add_argument("-save_fig", action="store_true")
     args = parser.parse_args()
 
     if args.dt == None:
+        # json_open = open(USER_INPUT_JSON_FILE_PATH, "r")
+        # mask_from_tos = json.load(json_open)
+
+        # for i, from_dt_str in enumerate(mask_from_tos.keys()):
+        #     from_dt, corr_split_dt = process_datetime(from_dt_str, args.corr_split_t)
+
+        #     fig_dir_path = create_dir_path(
+        #         args.corr_split_t, args.threshold_q, from_dt_str
+        #     )
+
+        #     if os.path.exists(fig_dir_path):
+        #         continue
+        #     else:
+        #         os.makedirs(fig_dir_path)
+        #         calc_by_dt(from_dt, corr_split_dt, fig_dir_path)
+
         # jsonから読み込む
         json_open = open(USER_INPUT_JSON_FILE_PATH, "r")
         mask_from_tos = json.load(json_open)
 
-        fig_dir_path = f"{OUTPUT_DIR_PATH}"  # 図の保存先ディレクトリ
-        if not os.path.exists(fig_dir_path):
-            os.makedirs(fig_dir_path)
+        def process_mask(from_dt_str):
+            from_dt, corr_split_dt = process_datetime(from_dt_str, args.corr_split_t)
 
-        for i, from_dt_str in enumerate(mask_from_tos.keys()):
-            year, month, day = from_dt_str.split("/")
-            from_dt = datetime.datetime(
-                int(year),
-                int(month),
-                int(day),
+            fig_dir_path = create_dir_path(
+                args.corr_split_t, args.threshold_q, from_dt_str
             )
 
-            fig_image_path = (
-                f"{fig_dir_path}/{str(i).zfill(4)}: {from_dt.strftime('%Y-%m-%d')}.png"
-            )
-
-            if os.path.isfile(fig_image_path):
-                continue
+            if os.path.exists(fig_dir_path):
+                return
             else:
-                calc_by_dt(from_dt, fig_image_path)
-    else:
-        year, month, day = args.dt.split("/")
-        from_dt = datetime.datetime(
-            int(year),
-            int(month),
-            int(day),
-        )
+                os.makedirs(fig_dir_path)
+                calc_by_dt(from_dt, corr_split_dt, fig_dir_path)
 
-        calc_by_dt(from_dt)
+        with multiprocessing.Pool() as pool:
+            pool.map(process_mask, mask_from_tos.keys())
+    else:
+        from_dt, corr_split_dt = process_datetime(args.dt, args.corr_split_t)
+
+        if args.save_fig:
+            fig_dir_path = create_dir_path(args.corr_split_t, args.threshold_q, args.dt)
+            if not os.path.exists(fig_dir_path):
+                os.makedirs(fig_dir_path)
+        else:
+            fig_dir_path = ""
+
+        calc_by_dt(from_dt, corr_split_dt, fig_dir_path)
