@@ -45,6 +45,18 @@ def process_datetime(dt_str, split_t_str):
     return from_dt, corr_split_dt
 
 
+def split_qs_by_dt(qs, qs_idx):
+    masked_q_all_copy = np.copy(qs)
+    masked_q_all_copy[:qs_idx] = 0  # 左側を0に置換
+    right_masked_q_all = masked_q_all_copy
+
+    masked_q_all_copy = np.copy(qs)
+    masked_q_all_copy[qs_idx:] = 0  # 右側を0に置換
+    left_masked_q_all = masked_q_all_copy
+
+    return left_masked_q_all, right_masked_q_all
+
+
 def calc_by_dt(from_dt, corr_split_dt, fig_dir_path=""):
     diff_days = 1.0
     dt_all, q_all = load_q_and_dt_for_period(from_dt, diff_days)
@@ -295,9 +307,10 @@ def calc_by_dt(from_dt, corr_split_dt, fig_dir_path=""):
             color=colorlist[1],
         )
         ax.plot(
-            np.array(dts, dtype="datetime64[s]") + estimated_delay.astype("timedelta64[s]"),
+            np.array(dts, dtype="datetime64[s]")
+            + estimated_delay.astype("timedelta64[s]"),
             qs,
-            label="ずれ時間だけスライド",
+            label="ずれ時間だけ実測データをスライド",
             linestyle="dashed",
             color=colorlist[2],
         )
@@ -312,9 +325,7 @@ def calc_by_dt(from_dt, corr_split_dt, fig_dir_path=""):
         ax.axvline(
             x=estimated_delay, linestyle="--", color=colorlist[1], label="推定ずれ時間"
         )
-        ax.set_title(
-            f"左側の相互相関\nずれ時間: {estimated_delay}[s]\n{span}\nq: {args.threshold_q}"
-        )
+        ax.set_title(f"ずれ時間: {estimated_delay}[s]\n{span}\nq: {args.threshold_q}")
         ax.set_xlabel("ラグ時間")
         ax.set_ylabel("相互相関")
         ax.legend()
@@ -322,13 +333,15 @@ def calc_by_dt(from_dt, corr_split_dt, fig_dir_path=""):
     split_indices = np.where(dt_all == corr_split_dt)[0]  # corr_split_dtのidx
     if len(split_indices) != 0:
         split_idx = split_indices[0]
-        masked_q_all_copy = np.copy(masked_q_all)
-        masked_q_all_copy[:split_idx] = 0
-        right_masked_q_all = masked_q_all_copy
 
-        masked_q_all_copy = np.copy(masked_q_all)
-        masked_q_all_copy[split_idx:] = 0
-        left_masked_q_all = masked_q_all_copy
+        left_masked_q_all, right_masked_q_all = split_qs_by_dt(masked_q_all, split_idx)
+        
+        # masked_q_all_copy = np.copy(masked_q_all)
+        # masked_q_all_copy[:split_idx] = 0  # 左側を0に置換
+        # right_masked_q_all = masked_q_all_copy
+        # masked_q_all_copy = np.copy(masked_q_all)
+        # masked_q_all_copy[split_idx:] = 0  # 右側を0に置換
+        # left_masked_q_all = masked_q_all_copy
 
         right_masked_q_all_subbed = right_masked_q_all - args.threshold_q
         left_masked_q_all_subbed = left_masked_q_all - args.threshold_q
@@ -355,7 +368,7 @@ def calc_by_dt(from_dt, corr_split_dt, fig_dir_path=""):
             calced_q_all,
             f"実測値(corr_split_dtの左側): {dt_all[0].strftime('%Y-%m-%d')}",
             f"計算値: {dt_all[0].strftime('%Y-%m-%d')}",
-            f"ずれ時間: {ed_left_subed_real}[s]\n{span}\nq: {args.threshold_q}",
+            f"実測データをしきい値分減算\nずれ時間: {ed_left_subed_real}[s]\n{span}\nq: {args.threshold_q}",
             colorlist,
             ed_left_subed_real,
         )
@@ -366,7 +379,7 @@ def calc_by_dt(from_dt, corr_split_dt, fig_dir_path=""):
             calced_q_all,
             f"実測値(corr_split_dtの右側): {dt_all[0].strftime('%Y-%m-%d')}",
             f"計算値: {dt_all[0].strftime('%Y-%m-%d')}",
-            f"ずれ時間: {ed_right_subed_real}[s]\n{span}\nq: {args.threshold_q}",
+            f"実測データをしきい値分減算\nずれ時間: {ed_right_subed_real}[s]\n{span}\nq: {args.threshold_q}",
             colorlist,
             ed_right_subed_real,
         )
@@ -401,7 +414,7 @@ def calc_by_dt(from_dt, corr_split_dt, fig_dir_path=""):
             calced_q_all_subbed,
             f"実測値(corr_split_dtの左側): {dt_all[0].strftime('%Y-%m-%d')}",
             f"計算値(しきい値だけ減算): {dt_all[0].strftime('%Y-%m-%d')}",
-            f"ずれ時間: {ed_left_subed_real_and_calc}[s]\n{span}\nq: {args.threshold_q}",
+            f"実測データと計算データをしきい値分減算\nずれ時間: {ed_left_subed_real_and_calc}[s]\n{span}\nq: {args.threshold_q}",
             colorlist,
             ed_left_subed_real_and_calc,
         )
@@ -412,7 +425,7 @@ def calc_by_dt(from_dt, corr_split_dt, fig_dir_path=""):
             calced_q_all_subbed,
             f"実測値(corr_split_dtの右側): {dt_all[0].strftime('%Y-%m-%d')}",
             f"計算値(しきい値だけ減算): {dt_all[0].strftime('%Y-%m-%d')}",
-            f"ずれ時間: {ed_right_subed_real_and_calc}[s]\n{span}\nq: {args.threshold_q}",
+            f"実測データと計算データをしきい値分減算\nずれ時間: {ed_right_subed_real_and_calc}[s]\n{span}\nq: {args.threshold_q}",
             colorlist,
             ed_right_subed_real_and_calc,
         )
@@ -435,6 +448,8 @@ def calc_by_dt(from_dt, corr_split_dt, fig_dir_path=""):
         if fig_dir_path != "":
             fig7_corr.savefig(f"{fig_dir_path}/7_corr.png")
 
+        left_masked_q_all, right_masked_q_all = split_qs_by_dt(masked_q_all_and_replaced_zero, split_idx)
+
         # 指定した時間で区切って2つ相互相関を求める
         corr_left, ed_left = calc_delay(calced_q_all, left_masked_q_all)
         corr_right, ed_right = calc_delay(calced_q_all, right_masked_q_all)
@@ -449,7 +464,7 @@ def calc_by_dt(from_dt, corr_split_dt, fig_dir_path=""):
             calced_q_all,
             f"実測値(corr_split_dtの左側): {dt_all[0].strftime('%Y-%m-%d')}",
             f"計算値: {dt_all[0].strftime('%Y-%m-%d')}",
-            f"ずれ時間: {ed_left}[s]\n{span}\nq: {args.threshold_q}",
+            f"しきい値以下の実測データを0に置換\nずれ時間: {ed_left}[s]\n{span}\nq: {args.threshold_q}",
             colorlist,
             ed_left,
         )
@@ -460,7 +475,7 @@ def calc_by_dt(from_dt, corr_split_dt, fig_dir_path=""):
             calced_q_all,
             f"実測値(corr_split_dtの右側): {dt_all[0].strftime('%Y-%m-%d')}",
             f"計算値: {dt_all[0].strftime('%Y-%m-%d')}",
-            f"ずれ時間: {ed_right}[s]\n{span}\nq: {args.threshold_q}",
+            f"しきい値以下の実測データを0に置換\nずれ時間: {ed_right}[s]\n{span}\nq: {args.threshold_q}",
             colorlist,
             ed_right,
         )
@@ -475,7 +490,7 @@ def calc_by_dt(from_dt, corr_split_dt, fig_dir_path=""):
         x_right = np.arange(-len(calced_q_all) + 1, len(right_masked_q_all))
         plot_corr(ax8_corr_right, x_right, corr_right, ed_right, colorlist)
         if fig_dir_path != "":
-            fig8_corr.savefig(f"{fig_dir_path}/8_right_corr.png")
+            fig8_corr.savefig(f"{fig_dir_path}/8_corr.png")
 
     plt.tight_layout()
 
