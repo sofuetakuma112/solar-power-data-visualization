@@ -104,18 +104,33 @@ if __name__ == "__main__":
 
     # print(calc_q_kw(datetime.datetime.now() + datetime.timedelta(hours=-8)))
 
-    target_sig = np.random.normal(size=100000) * 1.0
-    delay = 800
-    sig1 = np.random.normal(size=200000) * 0.2
-    sig1[delay : delay + 100000] += target_sig
-    sig2 = np.random.normal(size=200000) * 0.2
-    sig2[:100000] += target_sig
+    # target_sig = np.random.normal(size=100000) * 1.0
+    # delay = 800
+    # sig1 = np.random.normal(size=200000) * 0.2
+    # sig1[delay : delay + 100000] += target_sig
+    # sig2 = np.random.normal(size=200000) * 0.2
+    # sig2[:100000] += target_sig
 
-    print(f"type(sig1): {type(sig1)}")
-    print(f"type(sig2): {type(sig2)}")
-    print(f"sig1.shape: {sig1.shape}")
-    print(f"sig2.shape: {sig2.shape}")
+    # print(f"type(sig1): {type(sig1)}")
+    # print(f"type(sig2): {type(sig2)}")
+    # print(f"sig1.shape: {sig1.shape}")
+    # print(f"sig2.shape: {sig2.shape}")
 
-    corr = np.correlate(sig1, sig1, "full")
-    estimated_delay = corr.argmax() - (len(sig1) - 1)
-    print("estimated delay is " + str(estimated_delay))
+    # corr = np.correlate(sig1, sig1, "full")
+    # estimated_delay = corr.argmax() - (len(sig1) - 1)
+    # print("estimated delay is " + str(estimated_delay))
+
+    def full_cross_correlation(a, b):
+        len_a = len(a)
+        len_b = len(b)
+        out_len = len_a + len_b - 1
+        out = np.zeros(out_len)
+
+        for i in range(out_len):
+            for j in range(max(0, i - len_b + 1), min(i, len_a - 1) + 1):
+                out[i] += a[j] * b[i - j]
+                print(i, j)
+
+        return out + full_cross_correlation(b[::-1], a)
+    
+    full_cross_correlation(np.array([0, 1, 2]), np.array([3, 4, 5]))
