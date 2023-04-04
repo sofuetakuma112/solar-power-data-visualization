@@ -14,7 +14,7 @@ import matplotlib.dates as mdates
 from utils.init_matplotlib import init_rcParams, figsize_px_to_inch
 import multiprocessing
 
-# > python3 mask_by_q_for_corr.py -dt 2022/04/08 -surface_tilt 28 -surface_azimuth 178.28 -threshold_q 0.2 -corr_split_t 12:00:00
+# > python3 mask_by_q_for_corr.py -dt 2022/04/08 -surface_tilt 28 -surface_azimuth 178.28 -threshold_q 0.2 -corr_split_t 12:00:00 -show_fig
 
 FONT_SIZE = 14
 
@@ -45,7 +45,7 @@ def process_datetime(dt_str, split_t_str):
     return from_dt, corr_split_dt
 
 
-def split_qs_by_dt(qs, qs_idx):
+def split_qs_by_idx(qs, qs_idx):
     masked_q_all_copy = np.copy(qs)
     masked_q_all_copy[:qs_idx] = 0  # 左側を0に置換
     right_masked_q_all = masked_q_all_copy
@@ -334,15 +334,8 @@ def calc_by_dt(from_dt, corr_split_dt, fig_dir_path=""):
     if len(split_indices) != 0:
         split_idx = split_indices[0]
 
-        left_masked_q_all, right_masked_q_all = split_qs_by_dt(masked_q_all, split_idx)
+        left_masked_q_all, right_masked_q_all = split_qs_by_idx(masked_q_all, split_idx)
         
-        # masked_q_all_copy = np.copy(masked_q_all)
-        # masked_q_all_copy[:split_idx] = 0  # 左側を0に置換
-        # right_masked_q_all = masked_q_all_copy
-        # masked_q_all_copy = np.copy(masked_q_all)
-        # masked_q_all_copy[split_idx:] = 0  # 右側を0に置換
-        # left_masked_q_all = masked_q_all_copy
-
         right_masked_q_all_subbed = right_masked_q_all - args.threshold_q
         left_masked_q_all_subbed = left_masked_q_all - args.threshold_q
 
@@ -448,7 +441,7 @@ def calc_by_dt(from_dt, corr_split_dt, fig_dir_path=""):
         if fig_dir_path != "":
             fig7_corr.savefig(f"{fig_dir_path}/7_corr.png")
 
-        left_masked_q_all, right_masked_q_all = split_qs_by_dt(masked_q_all_and_replaced_zero, split_idx)
+        left_masked_q_all, right_masked_q_all = split_qs_by_idx(masked_q_all_and_replaced_zero, split_idx)
 
         # 指定した時間で区切って2つ相互相関を求める
         corr_left, ed_left = calc_delay(calced_q_all, left_masked_q_all)
@@ -494,7 +487,7 @@ def calc_by_dt(from_dt, corr_split_dt, fig_dir_path=""):
 
     plt.tight_layout()
 
-    if not args.save_fig:
+    if args.show_fig:
         plt.show()
 
 
@@ -524,6 +517,7 @@ if __name__ == "__main__":
         "-corr_split_t", type=str, default="24:00:00"
     )  # 相互相関の計算を分割するタイムスタンプ
     parser.add_argument("-sub_calc_q", action="store_true")  # 計算値もしきい値分減算するか
+    parser.add_argument("-show_fig", action="store_true")
     parser.add_argument("-save_fig", action="store_true")
     args = parser.parse_args()
 
