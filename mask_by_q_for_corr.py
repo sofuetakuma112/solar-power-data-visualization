@@ -206,7 +206,7 @@ def calc_by_dt(from_dt, corr_split_dt, fig_dir_path=""):
         calced_q_all,
         dt_all,
         colorlist,
-        f"ずれ時間: {estimated_delay_with_replaced_zero}[s]\n{span}\nq: {args.threshold_q}",
+        f"ずれ時間（指定したq以下の点をすべて0に置換した実測データを使用）: {estimated_delay_with_replaced_zero}[s]\n{span}\nq: {args.threshold_q}",
     )
     if fig_dir_path != "":
         fig3.savefig(f"{fig_dir_path}/3.png")
@@ -237,7 +237,7 @@ def calc_by_dt(from_dt, corr_split_dt, fig_dir_path=""):
         calced_q_all_subbed,
         dt_all,
         colorlist,
-        f"ずれ時間: {ed_with_subed_real_and_calc}[s]\n{span}\nq: {args.threshold_q}",
+        f"ずれ時間（指定したqだけ実測値と理論値を引いた実測データを使用）: {ed_with_subed_real_and_calc}[s]\n{span}\nq: {args.threshold_q}",
     )
     if fig_dir_path != "":
         fig5.savefig(f"{fig_dir_path}/5.png")
