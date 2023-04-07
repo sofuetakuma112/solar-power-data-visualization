@@ -473,7 +473,7 @@ def calc_by_dt(from_dt, corr_split_dt, fig_dir_path=""):
             ed_right,
         )
         if fig_dir_path != "":
-            fig7.savefig(f"{fig_dir_path}/8.png")
+            fig8.savefig(f"{fig_dir_path}/8.png")
 
         fig8_corr, (ax8_corr_left, ax8_corr_right) = plt.subplots(1, 2)
 
