@@ -179,7 +179,7 @@ def calc_by_dt(from_dt, corr_split_dt, fig_dir_path=""):
         calced_q_all,
         dt_all,
         colorlist,
-        f"ずれ時間: {estimated_delay_with_subed}[s]\n{span}\nq: {args.threshold_q}",
+        f"ずれ時間（指定したqだけ減算した実測データを使用）: {estimated_delay_with_subed}[s]\n{span}\nq: {args.threshold_q}",
     )
     if fig_dir_path != "":
         fig1.savefig(f"{fig_dir_path}/1.png")
@@ -229,7 +229,7 @@ def calc_by_dt(from_dt, corr_split_dt, fig_dir_path=""):
         _,
         ed_with_subed_real_and_calc,
     ) = calc_delay(calced_q_all_subbed, masked_q_all_and_subed)
-    print(f"ずれ時間（指定したqだけ実測値と理論値を引いた実測データを使用）: {ed_with_subed_real_and_calc}[s]")
+    print(f"ずれ時間（指定したqだけ減算した実測データと理論データを使用）: {ed_with_subed_real_and_calc}[s]")
 
     fig5 = plot_fig(
         unified_dates,
@@ -237,12 +237,12 @@ def calc_by_dt(from_dt, corr_split_dt, fig_dir_path=""):
         calced_q_all_subbed,
         dt_all,
         colorlist,
-        f"ずれ時間（指定したqだけ実測値と理論値を引いた実測データを使用）: {ed_with_subed_real_and_calc}[s]\n{span}\nq: {args.threshold_q}",
+        f"ずれ時間（指定したqだけ減算した実測データと理論データを使用）: {ed_with_subed_real_and_calc}[s]\n{span}\nq: {args.threshold_q}",
     )
     if fig_dir_path != "":
         fig5.savefig(f"{fig_dir_path}/5.png")
 
-    def plot_qs_and_calced_qs(
+    def plot_qs_and_calced_qs_and_slided_qs(
         ax,
         dts,
         qs,
@@ -303,13 +303,13 @@ def calc_by_dt(from_dt, corr_split_dt, fig_dir_path=""):
         corr_right, ed_right_subed_real = calc_delay(
             calced_q_all, right_masked_q_all_subbed
         )
-        print(f"ずれ時間（指定したqだけ実測値を引いた実測データの左側を使用）: {ed_left_subed_real}[s]")
-        print(f"ずれ時間（指定したqだけ実測値を引いた実測データの右側を使用）: {ed_right_subed_real}[s]")
+        print(f"ずれ時間（指定したqだけ減算した実測データの左側を使用）: {ed_left_subed_real}[s]")
+        print(f"ずれ時間（指定したqだけ減算した実測データの右側を使用）: {ed_right_subed_real}[s]")
 
         # 指定した時間で区切って2つ相互相関を求める + 実測データをしきい値分減算する
         fig6, (ax6_1, ax6_2) = plt.subplots(1, 2)
 
-        plot_qs_and_calced_qs(
+        plot_qs_and_calced_qs_and_slided_qs(
             ax6_1,
             unified_dates,
             left_masked_q_all_subbed,
@@ -320,7 +320,7 @@ def calc_by_dt(from_dt, corr_split_dt, fig_dir_path=""):
             colorlist,
             ed_left_subed_real,
         )
-        plot_qs_and_calced_qs(
+        plot_qs_and_calced_qs_and_slided_qs(
             ax6_2,
             unified_dates,
             right_masked_q_all_subbed,
@@ -351,11 +351,11 @@ def calc_by_dt(from_dt, corr_split_dt, fig_dir_path=""):
         corr_right, ed_right_subed_real_and_calc = calc_delay(
             calced_q_all_subbed, right_masked_q_all_subbed
         )
-        print(f"ずれ時間（指定したqだけ実測値と計算値を引いた実測データの左側を使用）: {ed_left_subed_real_and_calc}[s]")
-        print(f"ずれ時間（指定したqだけ実測値と計算値を引いた実測データの右側を使用）: {ed_right_subed_real_and_calc}[s]")
+        print(f"ずれ時間（指定したqだけ実測データと理論データを減算した上で、実測データの左側を使用）: {ed_left_subed_real_and_calc}[s]")
+        print(f"ずれ時間（指定したqだけ実測データと理論データを減算した上で、実測データの右側を使用）: {ed_right_subed_real_and_calc}[s]")
 
         fig7, (ax7_1, ax7_2) = plt.subplots(1, 2)
-        plot_qs_and_calced_qs(
+        plot_qs_and_calced_qs_and_slided_qs(
             ax7_1,
             unified_dates,
             left_masked_q_all_subbed,
@@ -366,7 +366,7 @@ def calc_by_dt(from_dt, corr_split_dt, fig_dir_path=""):
             colorlist,
             ed_left_subed_real_and_calc,
         )
-        plot_qs_and_calced_qs(
+        plot_qs_and_calced_qs_and_slided_qs(
             ax7_2,
             unified_dates,
             right_masked_q_all_subbed,
@@ -407,7 +407,7 @@ def calc_by_dt(from_dt, corr_split_dt, fig_dir_path=""):
         print(f"ずれ時間（指定したq以下の点をすべて0に置換した実測データの右側を使用）: {ed_right}[s]")
 
         fig8, (ax8_1, ax8_2) = plt.subplots(1, 2)
-        plot_qs_and_calced_qs(
+        plot_qs_and_calced_qs_and_slided_qs(
             ax8_1,
             unified_dates,
             left_masked_q_all,
@@ -418,7 +418,7 @@ def calc_by_dt(from_dt, corr_split_dt, fig_dir_path=""):
             colorlist,
             ed_left,
         )
-        plot_qs_and_calced_qs(
+        plot_qs_and_calced_qs_and_slided_qs(
             ax8_2,
             unified_dates,
             right_masked_q_all,
