@@ -6,10 +6,17 @@ from scipy import signal
 fs = 1000  # サンプリング周波数（Hz）
 
 # 時間軸データ
-t = np.arange(0, 1, 1/fs)  # 1秒間のデータ
+t = np.arange(0, 1, 1 / fs)  # 1秒間のデータ
 
 # 合成信号（例として、5Hzと50Hzの正弦波を使用）
 x = np.sin(2 * np.pi * 5 * t) + np.sin(2 * np.pi * 50 * t)
+
+plt.plot(t, x)
+plt.xlabel("Time (hours)")
+plt.ylabel("Windowed Solar Radiation")
+plt.title("Windowed Solar Radiation vs Time")
+plt.grid(True)
+plt.show()
 
 # スペクトル解析（パワースペクトル密度を求める）
 f, Pxx_den = signal.periodogram(x, fs)

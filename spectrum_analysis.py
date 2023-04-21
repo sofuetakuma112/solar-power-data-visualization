@@ -44,7 +44,7 @@ if __name__ == "__main__":
     dt_all, q_all = load_q_and_dt_for_period(from_dt, diff_days)
     dt_all, q_all = unify_deltas_between_dts_v2(dt_all, q_all)
 
-    q_all = q_all * 1000 # kW => Wに変換
+    # q_all = q_all * 1000 # kW => Wに変換
 
     # 前処理
     q_cleaned = remove_dc_component(q_all)
