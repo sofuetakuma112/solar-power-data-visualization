@@ -27,10 +27,10 @@ def perform_fft(data, sampling_rate):
     T = 1 / sampling_rate
     yf = fft(data)
     xf = fftfreq(N, T)[: N // 2]
-    return xf, np.abs(yf[0 : N // 2])
+    return xf, yf
 
 
-def find_fundamental_frequency(xf, yf):
+def find_fundamental_frequency(xf, yf, N):
     """
     概要:
         フーリエ変換により得られた周波数スペクトルから、最大振幅を示す周波数を見つける関数
@@ -42,11 +42,11 @@ def find_fundamental_frequency(xf, yf):
     戻り値:
         float: 振幅スペクトルの振幅が最大となる周波数
     """
-    max_index = np.argmax(yf)  # 最大振幅を持つ周波数スペクトルデータのインデックスを取得する
+    max_index = np.argmax(np.abs(yf[0 : N // 2]))  # 最大振幅を持つ周波数スペクトルデータのインデックスを取得する
     return xf[max_index]
 
 
-def find_phase_difference(yf_measured, yf_calculated, fundamental_freq):
+def find_phase_difference(yf_measured, yf_calculated, N):
     """
     2つの時系列データから位相差を計算する関数
     入力された measured_data と calculated_data の中で最も強い周波数成分を見つけ、その周波数成分における位相を計算しています。そして、それぞれの位相差を計算して返しています。
@@ -54,7 +54,7 @@ def find_phase_difference(yf_measured, yf_calculated, fundamental_freq):
     入力:
         measured_data: 実測値のデータ
         calculated_data: 計算値のデータ
-        fundamental_freq: 基本周波数
+        N: 時系列データの長さ
 
     出力:
         phase_diff: 実測値と計算値の位相差
@@ -62,8 +62,10 @@ def find_phase_difference(yf_measured, yf_calculated, fundamental_freq):
     # np.argmax(yf_measured)で振幅が最大を取る点のインデックスを求める
     # yf_measured[np.argmax(yf_measured)]で振幅の最大値を求める
     # np.angleで振幅の最大値（基本周波数）に対応する位相を求める
-    phase_measured = np.angle(yf_measured[np.argmax(yf_measured)])
-    phase_calculated = np.angle(yf_calculated[np.argmax(yf_calculated)])
+    phase_measured = np.angle(yf_measured[np.argmax(np.abs(yf_measured[0 : N // 2]))])
+    phase_calculated = np.angle(
+        yf_calculated[np.argmax(np.abs(yf_calculated[0 : N // 2]))]
+    )
     print(f"実測データの基本周波数に対応する位相: {phase_measured} [rad]")
     print(f"計算データの基本周波数に対応する位相: {phase_calculated} [rad]")
 
@@ -123,7 +125,9 @@ if __name__ == "__main__":
     # 実測データと計算データにFFTを実行する
     q_all = q_all - np.mean(q_all)
     xf_measured, yf_measured = perform_fft(q_all, sampling_rate)
-    fundamental_freq_measured = find_fundamental_frequency(xf_measured, yf_measured)
+    fundamental_freq_measured = find_fundamental_frequency(
+        xf_measured, yf_measured, len(q_all)
+    )
     print(f"実測データの基本周波数: {fundamental_freq_measured} [Hz]")
 
     phase_diffs = np.array([])
@@ -135,7 +139,7 @@ if __name__ == "__main__":
         xf_calculated, yf_calculated = perform_fft(calced_q_all_rolled, sampling_rate)
         # 基本周波数を求める
         fundamental_freq_calculated = find_fundamental_frequency(
-            xf_calculated, yf_calculated
+            xf_calculated, yf_calculated, len(calced_q_all_rolled)
         )
         print(f"計算データの基本周波数: {fundamental_freq_calculated} [Hz]")
 
@@ -159,9 +163,7 @@ if __name__ == "__main__":
             plt.show()
 
         # 位相差を計算する
-        phase_diff = find_phase_difference(
-            yf_measured, yf_calculated, fundamental_freq_measured
-        )
+        phase_diff = find_phase_difference(yf_measured, yf_calculated, len(yf_measured))
 
         phase_diffs = np.append(phase_diffs, phase_diff)
 
