@@ -168,6 +168,9 @@ if __name__ == "__main__":
 
         phase_diffs = np.append(phase_diffs, phase_diff)
 
+    slope, intercept = np.polyfit(shifts, phase_diffs, 1)
+    print(f"1sずれるごとに増えるラジアン: {slope} [rad]") # 7.272289386659088e-05 [rad]
+
     fig, ax = plt.subplots()
     ax.plot(shifts, phase_diffs, label="ずれ時間とそれに対応する位相差")
     ax.set_xlabel("ずれ時間 [s]")
