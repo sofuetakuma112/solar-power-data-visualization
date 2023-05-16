@@ -21,10 +21,10 @@ def perform_fft(data, sampling_rate):
 
     返り値:
         xf: ndarray - 周波数軸
-        np.abs(yf[0 : N // 2]): ndarray - 周波数成分の振幅
+        yf: ndarray - 振幅（複素数）
     """
-    N = len(data)
-    T = 1 / sampling_rate
+    N = len(data) # 時系列データの長さ
+    T = 1 / sampling_rate # サンプリング周期
     yf = fft(data)
     xf = fftfreq(N, T)[: N // 2]
     return xf, yf
@@ -49,11 +49,11 @@ def find_fundamental_frequency(xf, yf, N):
 def find_phase_difference(yf_measured, yf_calculated, N):
     """
     2つの時系列データから位相差を計算する関数
-    入力された measured_data と calculated_data の中で最も強い周波数成分を見つけ、その周波数成分における位相を計算しています。そして、それぞれの位相差を計算して返しています。
+    入力された yf_measured と yf_calculated の中で最も強い周波数成分を見つけ、その周波数成分における位相を計算しています。そして、それぞれの位相差を計算して返しています。
 
     入力:
-        measured_data: 実測値のデータ
-        calculated_data: 計算値のデータ
+        yf_measured: 実測値のデータ
+        yf_calculated: 計算値のデータ
         N: 時系列データの長さ
 
     出力:
@@ -123,26 +123,29 @@ if __name__ == "__main__":
     # サンプリングレートを設定する
     sampling_rate = 1.0
 
-    # 実測データと計算データにFFTを実行する
+    # 実測データをFFTする
     q_all = q_all - np.mean(q_all)
     xf_measured, yf_measured = perform_fft(q_all, sampling_rate)
-    fundamental_freq_measured = find_fundamental_frequency(
-        xf_measured, yf_measured, len(q_all)
-    )
-    print(f"実測データの基本周波数: {fundamental_freq_measured} [Hz]")
+    
+    # fundamental_freq_measured = find_fundamental_frequency(
+    #     xf_measured, yf_measured, len(q_all)
+    # )
+    # print(f"実測データの基本周波数: {fundamental_freq_measured} [Hz]")
 
     phase_diffs = np.array([])
     shifts = np.arange(0 + args.shift_offset, args.max_shift, 1)
     for shift in shifts:
-        calced_q_all_rolled = np.roll(calced_q_all, shift)
-        calced_q_all_rolled = calced_q_all_rolled - np.mean(calced_q_all_rolled)
+        calced_q_all_rolled = np.roll(calced_q_all, shift) # 計算データをshift分遅らせる
+        
         # 計算データをFFTする
+        calced_q_all_rolled = calced_q_all_rolled - np.mean(calced_q_all_rolled)
         xf_calculated, yf_calculated = perform_fft(calced_q_all_rolled, sampling_rate)
+        
         # 基本周波数を求める
-        fundamental_freq_calculated = find_fundamental_frequency(
-            xf_calculated, yf_calculated, len(calced_q_all_rolled)
-        )
-        print(f"計算データの基本周波数: {fundamental_freq_calculated} [Hz]")
+        # fundamental_freq_calculated = find_fundamental_frequency(
+        #     xf_calculated, yf_calculated, len(calced_q_all_rolled)
+        # )
+        # print(f"計算データの基本周波数: {fundamental_freq_calculated} [Hz]")
 
         # FFTの結果をプロット
         if args.plot_fft_flag:
@@ -168,6 +171,7 @@ if __name__ == "__main__":
 
         phase_diffs = np.append(phase_diffs, phase_diff)
 
+    # 横軸ずれ時間、縦軸位相差のグラフの傾きを求める
     slope, intercept = np.polyfit(shifts, phase_diffs, 1)
     print(f"1sずれるごとに増えるラジアン: {slope} [rad]") # 7.272289386659088e-05 [rad]
 
