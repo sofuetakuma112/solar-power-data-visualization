@@ -7,7 +7,6 @@ from utils.frequency_analysis import find_phase_difference, perform_fft
 from utils.init_matplotlib import figsize_px_to_inch, init_rcParams
 import japanize_matplotlib
 from utils.colors import colorlist
-from datetime import datetime
 
 FONT_SIZE = 14
 
