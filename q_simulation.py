@@ -69,7 +69,7 @@ def plot_calced_q_graph(dt_all, q_all):
     ax.plot(
         dt_all,
         q_all,
-        label=f"実測値",
+        label=f"自作関数で生成した日射量",
         color=colorlist[0],
     )
     ax.set_xlabel("時刻")
