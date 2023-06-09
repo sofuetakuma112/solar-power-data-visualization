@@ -10,7 +10,7 @@ from utils.correlogram import unify_deltas_between_dts_v2
 import numpy as np
 from scipy.fft import fft, fftfreq
 
-# > python3 shift_phase_graph.py -dt 2022/04/08 -max_shift 1000
+# > python3 phase_difference/shift_phase_graph.py -dt 2022/04/08 -max_shift 1000
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-dt", type=str)  # グラフ描画したい日付のリスト

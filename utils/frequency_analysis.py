@@ -57,11 +57,11 @@ def find_phase_difference(yf_measured, yf_calculated, N):
     phase_calculated = np.angle(
         yf_calculated[np.argmax(np.abs(yf_calculated[0 : N // 2]))]
     )
-    print(f"実測データの基本周波数に対応する位相: {phase_measured} [rad]")
-    print(f"計算データの基本周波数に対応する位相: {phase_calculated} [rad]")
+    # print(f"実測データの基本周波数に対応する位相: {phase_measured} [rad]")
+    # print(f"計算データの基本周波数に対応する位相: {phase_calculated} [rad]")
 
     phase_diff = phase_measured - phase_calculated
-    print(f"位相差: {phase_diff} [rad]")
+    # print(f"位相差: {phase_diff} [rad]")
 
     return phase_diff
 
