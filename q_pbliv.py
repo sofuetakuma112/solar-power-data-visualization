@@ -41,6 +41,7 @@ def find_peak_times(t, q_all):
     return t[peaks]
 
 # 指定したtarget_durationの長さになるように左右を均等に切り落とす
+# FIXME: target_durationが奇数秒の場合には対応していない
 def drop_data_points(time_series, target_duration):
     num_points = len(time_series)
     target_points = int(target_duration.total_seconds())
@@ -105,20 +106,21 @@ def main(args):
     period = peak_time_next_day - peak_time
     period_seconds = period.total_seconds()
 
-    print(f"period_seconds: {period_seconds}")
+    T = period_seconds
 
     q_all_dropped = drop_data_points(q_all, period)
     dt_all_dropped = drop_data_points(dt_all, period)
-
-    print(f"len(dt_all_dropped): {len(dt_all_dropped)}")
-    print(f"len(dt_all_dropped): {len(dt_all_dropped)}")
 
     q_all_dropped_original = q_all_dropped.copy()
     q_all_dropped_copy = q_all_dropped.copy()
 
     sampling_rate = 1 / sampling_interval
     
-    xf_measured, yf_measured = perform_frequency_analysis(q_all_dropped, sampling_rate)
+    xf_measured, yf_measured, fundamental_frequency = perform_frequency_analysis(q_all_dropped, sampling_rate)
+
+    print(f"基本周波数: {fundamental_frequency}")
+    print(f"時系列データの周期の逆数: {1 / T}")
+    print(f"基本周波数 == 時系列データのサンプリングレート: {fundamental_frequency == 1 / T }")
     
     shifts = np.arange(args.shift_offset, args.max_shift)
     phase_diffs = calculate_phase_diffs(shifts, q_all_dropped_copy, yf_measured, sampling_rate)
@@ -128,8 +130,6 @@ def main(args):
     print(f"phase_diffs[0]: {phase_diffs[0]} [rad]")
     print(f"phase_diffs[-1]: {phase_diffs[-1]} [rad]")
 
-    # 24時間shift, calced_q_all, yf_measured, sampling_rateをずらした際の
-    
     plot_phase_graph(shifts, phase_diffs)
 
     if args.plot_calced_q:

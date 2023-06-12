@@ -63,7 +63,7 @@ def main(args):
     
     sampling_rate = 1 / sampling_interval
     
-    xf_measured, yf_measured = perform_frequency_analysis(q_all, sampling_rate)
+    xf_measured, yf_measured, _ = perform_frequency_analysis(q_all, sampling_rate)
     
     shifts = np.arange(args.shift_offset, args.max_shift)
     phase_diffs = calculate_phase_diffs(shifts, calced_q_all, yf_measured, sampling_rate)

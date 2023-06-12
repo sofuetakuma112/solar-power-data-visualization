@@ -20,19 +20,40 @@ def create_dataframe(t, q_all, period=1):
 def perform_frequency_analysis(q_all, sampling_rate):
     q_all -= np.mean(q_all)
     xf_measured, yf_measured = perform_fft(q_all, sampling_rate)
-    return xf_measured, yf_measured
+    fundamental_frequency = xf_measured[
+        np.argmax(np.abs(yf_measured[: len(xf_measured)]))
+    ]
+    return xf_measured, yf_measured, fundamental_frequency
+
 
 def calculate_phase_diff(shift, calced_q_all, yf_measured, sampling_rate):
     calced_q_all_rolled = np.roll(calced_q_all, shift)
     calced_q_all_rolled -= np.mean(calced_q_all_rolled)
     xf_calculated, yf_calculated = perform_fft(calced_q_all_rolled, sampling_rate)
+
+    # FFTの結果を見たいときにコメントアウトする
+    # fig, ax = plt.subplots()
+    # ax.scatter(
+    #     xf_calculated,
+    #     np.abs(yf_calculated[: len(xf_calculated)]),
+    #     label=f"FFTの結果",
+    #     color=colorlist[0],
+    # )
+    # ax.set_xlabel("Freq")
+    # ax.set_ylabel("Amp")
+    # ax.legend()
+    # plt.show()
+
     phase_diff = find_phase_difference(yf_measured, yf_calculated, len(yf_measured))
     return phase_diff
+
 
 def calculate_phase_diffs(shifts, calced_q_all, yf_measured, sampling_rate):
     phase_diffs = []
     for shift in shifts:
-        phase_diff = calculate_phase_diff(shift, calced_q_all, yf_measured, sampling_rate)
+        phase_diff = calculate_phase_diff(
+            shift, calced_q_all, yf_measured, sampling_rate
+        )
         phase_diffs.append(phase_diff)
     return np.array(phase_diffs)
 
