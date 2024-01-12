@@ -18,7 +18,7 @@ load_dotenv(f"{os.getcwd()}/.env")
 def fetch_docs_by_datetime(dt):
     es = Elasticsearch(
         "http://133.71.201.197:9200",
-        http_auth=(
+        basic_auth=(
             os.getenv("RECYCLE_ELASTIC_USER_NAME"),
             os.getenv("RECYCLE_ELASTIC_PASSWORD"),
         ),

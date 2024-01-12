@@ -2,13 +2,12 @@ import datetime
 import sys
 import matplotlib.pyplot as plt
 import japanize_matplotlib
-from utils.es.load import loadQAndDtForAGivenPeriod
-import os
+from utils.es.load import load_q_and_dt_for_period
 import json
 import numpy as np
 from utils.q import calc_q_kw
 from utils.correlogram import (
-    unify_deltas_between_dts,
+    unify_deltas_between_dts_v2,
 )
 
 if __name__ == "__main__":
@@ -16,13 +15,12 @@ if __name__ == "__main__":
     diff_and_dates = json.load(json_open)
 
     for diff_and_date in diff_and_dates:
-        fromDt = datetime.datetime.strptime(diff_and_date[-1], "%Y-%m-%d")
-        toDt = fromDt + datetime.timedelta(days=1)
+        from_dt = datetime.datetime.strptime(diff_and_date[-1], "%Y-%m-%d")
+        to_dt = from_dt + datetime.timedelta(days=1)
 
-        dt_all, Q_all = loadQAndDtForAGivenPeriod(fromDt, toDt, True)
-
-        # 時系列データのデルタを均一にする
-        dt_all, Q_all = unify_deltas_between_dts(dt_all, Q_all)
+        diff_days = 1.0
+        dt_all, q_all = load_q_and_dt_for_period(from_dt, diff_days)
+        dt_all, q_all = unify_deltas_between_dts_v2(dt_all, q_all)
 
         dt_all = np.array(dt_all)
         Q_all = np.array(Q_all)
@@ -31,4 +29,4 @@ if __name__ == "__main__":
         corr = np.correlate(Q_all, q_calc_all, "full")
         estimated_delay = corr.argmax() - (len(q_calc_all) - 1)
 
-        print(f"{fromDt}: {estimated_delay}")
+        print(f"{from_dt}: {estimated_delay}")
