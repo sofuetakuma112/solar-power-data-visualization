@@ -15,6 +15,7 @@ from utils.init_matplotlib import init_rcParams, figsize_px_to_inch
 import multiprocessing
 
 # > python3 mask_by_q_for_corr.py -dt 2022/04/08 -surface_tilt 28 -surface_azimuth 178.28 -threshold_q 0.2 -corr_split_t 12:00:00 -show_fig
+# > python3 mask_by_q_for_corr.py -dt 2022/06/02 -surface_tilt 22 -surface_azimuth 179.0 -threshold_q 0.2 -show_fig
 
 FONT_SIZE = 14
 
@@ -145,8 +146,8 @@ def calc_by_dt(from_dt, corr_split_dt, fig_dir_path=""):
 
     span = f"{mask_from.strftime('%Y-%m-%d %H:%M:%S')}〜{mask_to.strftime('%Y-%m-%d %H:%M:%S')}"
 
-    figsize_inch = figsize_px_to_inch(np.array([1920, 1080]))
-    plt.rcParams = init_rcParams(plt.rcParams, 16, figsize_inch)
+    figsize_inch = figsize_px_to_inch(np.array([1280, 720]))
+    plt.rcParams = init_rcParams(plt.rcParams, FONT_SIZE, figsize_inch)
 
     def plot_fig(unified_dates, real_qs, calced_qs, dt_all, colorlist, title):
         fig = plt.figure()
@@ -164,41 +165,41 @@ def calc_by_dt(from_dt, corr_split_dt, fig_dir_path=""):
             linestyle="dashed",
             color=colorlist[1],
         )
-        ax.set_title(
-            title,
-        )
+        # ax.set_title(
+        #     title,
+        # )
         ax.set_xlabel("時刻")
         ax.set_ylabel("日射量 [kW/m$^2$]")
         ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
         ax.legend()
         return fig
 
-    fig1 = plot_fig(
-        unified_dates,
-        masked_q_all_and_subed,
-        calced_q_all,
-        dt_all,
-        colorlist,
-        f"ずれ時間（指定したqだけ減算した実測データを使用）: {estimated_delay_with_subed}[s]\n{span}\nq: {args.threshold_q}",
-    )
-    if fig_dir_path != "":
-        fig1.savefig(f"{fig_dir_path}/1.png")
+    # fig1 = plot_fig(
+    #     unified_dates,
+    #     masked_q_all_and_subed,
+    #     calced_q_all,
+    #     dt_all,
+    #     colorlist,
+    #     f"ずれ時間（指定したqだけ減算した実測データを使用）: {estimated_delay_with_subed}[s]\n{span}\nq: {args.threshold_q}",
+    # )
+    # if fig_dir_path != "":
+    #     fig1.savefig(f"{fig_dir_path}/1.png")
 
     tmp = masked_q_all_and_subed + args.threshold_q
     inverted_mask = np.logical_not(mask)
     np.putmask(tmp, inverted_mask, tmp * np.nan)
     masked_q_all_and_added = tmp
 
-    fig2 = plot_fig(
-        unified_dates,
-        masked_q_all_and_added,
-        calced_q_all,
-        dt_all,
-        colorlist,
-        f"実測値をしきい値のqだけ上にスライドさせたもの\n{span}以外は非表示にしている",
-    )
-    if fig_dir_path != "":
-        fig2.savefig(f"{fig_dir_path}/2.png")
+    # fig2 = plot_fig(
+    #     unified_dates,
+    #     masked_q_all_and_added,
+    #     calced_q_all,
+    #     dt_all,
+    #     colorlist,
+    #     f"実測値をしきい値のqだけ上にスライドさせたもの\n{span}以外は非表示にしている",
+    # )
+    # if fig_dir_path != "":
+    #     fig2.savefig(f"{fig_dir_path}/2.png")
 
     fig3 = plot_fig(
         unified_dates,
@@ -211,16 +212,16 @@ def calc_by_dt(from_dt, corr_split_dt, fig_dir_path=""):
     if fig_dir_path != "":
         fig3.savefig(f"{fig_dir_path}/3.png")
 
-    fig4 = plot_fig(
-        unified_dates,
-        q_all_raw,
-        calced_q_all,
-        dt_all,
-        colorlist,
-        f"実測データと計算データ比較用",
-    )
-    if fig_dir_path != "":
-        fig4.savefig(f"{fig_dir_path}/4.png")
+    # fig4 = plot_fig(
+    #     unified_dates,
+    #     q_all_raw,
+    #     calced_q_all,
+    #     dt_all,
+    #     colorlist,
+    #     f"実測データと計算データ比較用",
+    # )
+    # if fig_dir_path != "":
+    #     fig4.savefig(f"{fig_dir_path}/4.png")
 
     # 1日すべて使う + 理論データも指定したしきい値だけ減算
     calced_q_all_subbed = calced_q_all - args.threshold_q
@@ -231,16 +232,16 @@ def calc_by_dt(from_dt, corr_split_dt, fig_dir_path=""):
     ) = calc_delay(calced_q_all_subbed, masked_q_all_and_subed)
     print(f"ずれ時間（指定したqだけ減算した実測データと理論データを使用）: {ed_with_subed_real_and_calc}[s]")
 
-    fig5 = plot_fig(
-        unified_dates,
-        masked_q_all_and_subed,
-        calced_q_all_subbed,
-        dt_all,
-        colorlist,
-        f"ずれ時間（指定したqだけ減算した実測データと理論データを使用）: {ed_with_subed_real_and_calc}[s]\n{span}\nq: {args.threshold_q}",
-    )
-    if fig_dir_path != "":
-        fig5.savefig(f"{fig_dir_path}/5.png")
+    # fig5 = plot_fig(
+    #     unified_dates,
+    #     masked_q_all_and_subed,
+    #     calced_q_all_subbed,
+    #     dt_all,
+    #     colorlist,
+    #     f"ずれ時間（指定したqだけ減算した実測データと理論データを使用）: {ed_with_subed_real_and_calc}[s]\n{span}\nq: {args.threshold_q}",
+    # )
+    # if fig_dir_path != "":
+    #     fig5.savefig(f"{fig_dir_path}/5.png")
 
     def plot_qs_and_calced_qs_and_slided_qs(
         ax,
@@ -351,8 +352,12 @@ def calc_by_dt(from_dt, corr_split_dt, fig_dir_path=""):
         corr_right, ed_right_subed_real_and_calc = calc_delay(
             calced_q_all_subbed, right_masked_q_all_subbed
         )
-        print(f"ずれ時間（指定したqだけ実測データと理論データを減算した上で、実測データの左側を使用）: {ed_left_subed_real_and_calc}[s]")
-        print(f"ずれ時間（指定したqだけ実測データと理論データを減算した上で、実測データの右側を使用）: {ed_right_subed_real_and_calc}[s]")
+        print(
+            f"ずれ時間（指定したqだけ実測データと理論データを減算した上で、実測データの左側を使用）: {ed_left_subed_real_and_calc}[s]"
+        )
+        print(
+            f"ずれ時間（指定したqだけ実測データと理論データを減算した上で、実測データの右側を使用）: {ed_right_subed_real_and_calc}[s]"
+        )
 
         fig7, (ax7_1, ax7_2) = plt.subplots(1, 2)
         plot_qs_and_calced_qs_and_slided_qs(
