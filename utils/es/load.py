@@ -1,23 +1,14 @@
 import datetime
 import json
-from operator import itemgetter
-from utils.es import fetch, util
-from utils.file import get_pickle_file_path_by_datetime, get_json_file_path_by_datetime
-import pickle
+from utils.es import fetch
+from utils.file import get_json_file_path_by_datetime
 from utils.es.util import (
-    sortDocsByKey,
-    isoformats2dt,
     extractFieldsFromDocs,
     extractFieldsFromDoc,
     isoformat2dt,
 )
-from itertools import chain
 import math
-import os
 import numpy as np
-
-import matplotlib.pyplot as plt
-import japanize_matplotlib
 
 import logging
 
@@ -45,53 +36,6 @@ def time_to_seconds(t):
         hours=t.hour, minutes=t.minute, seconds=t.second
     ).total_seconds()
 
-
-# def complement_docs(docs, dt_crr_fetching):
-# # docsをループで回して年/月/日/時/分/秒レベルでデータが無いものを0扱いで補完する
-# def _complement_docs(dt_crr_complementing, end_dt, docs):
-#     while dt_crr_complementing < end_dt:
-#         docs.append(create_doc_dict(dt_crr_complementing, 0))
-#         dt_crr_complementing += datetime.timedelta(seconds=1)
-
-#     return docs
-
-# if len(docs) == 0:
-#     # 全くデータが無い
-#     end_dt = dt_crr_fetching + datetime.timedelta(days=1)
-#     dt_crr_complementing = dt_crr_fetching
-#     docs = _complement_docs(dt_crr_complementing, end_dt, docs)
-# else:
-#     # 途中で計測できなくなっている
-#     today = datetime.datetime(
-#         dt_crr_fetching.year,
-#         dt_crr_fetching.month,
-#         dt_crr_fetching.day,
-#         0,
-#         0,
-#         0,
-#         0,
-#     )
-#     end_dt = today + datetime.timedelta(days=1)
-#     dt_crr_complementing = datetime.datetime(
-#         dt_crr_fetching.year,
-#         dt_crr_fetching.month,
-#         dt_crr_fetching.day,
-#         dt_crr_fetching.hour,
-#         dt_crr_fetching.minute,
-#         dt_crr_fetching.second,
-#         0,
-#     ) + datetime.timedelta(seconds=1)
-#     print(f"dt_crr_complementing: {dt_crr_complementing}")
-#     print(f"end_dt: {end_dt}")
-#     diff = end_dt - dt_crr_complementing
-#     print(
-#         f"dt_crr_complementing: {dt_crr_complementing.strftime('%Y/%m/%d %H:%M:%S')}"
-#     )
-#     print(f"len(docs): {len(docs)}")
-#     print(f"diff [s]: {diff.seconds}")
-#     docs = _complement_docs(dt_crr_complementing, end_dt, docs)
-
-# return docs
 
 EPOCH_TIME = datetime.datetime(1970, 1, 1)
 
@@ -254,29 +198,3 @@ def load_q_and_dt_for_period(
         dt_crr_fetching = dt_crr_fetching + datetime.timedelta(days=1)
 
     return [dt_all, q_all]
-
-
-def loadQAndDtForAGivenPeriod(fromDt, toDt, includesNoDataDay=False):
-    Q_all = []
-    dt_all = []
-    dtDiff = toDt - fromDt
-    dt_crr = fromDt
-    for _ in range(dtDiff.days + 1):
-        fetch.fetch_docs_by_datetime(dt_crr)
-        filePath = get_pickle_file_path_by_datetime(dt_crr)
-        with open(filePath, "rb") as f:
-            docs = pickle.load(f)
-        docs = sortDocsByKey(docs, "JPtime")
-        jptimes = extractFieldsFromDocs(docs, "JPtime")
-        dts_per_day = isoformats2dt(jptimes)
-        qs_per_day = extractFieldsFromDocs(docs, "solarIrradiance(kw/m^2)")
-
-        Q_all = list(chain(Q_all, qs_per_day))
-        dt_all = list(chain(dt_all, dts_per_day))
-
-        if len(qs_per_day) < 10 and not includesNoDataDay:
-            raise ValueError(f"データがない日が含まれている: {dt_crr}")
-
-        dt_crr = dt_crr + datetime.timedelta(days=1)
-
-    return [dt_all, Q_all]
