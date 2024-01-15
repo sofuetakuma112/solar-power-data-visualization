@@ -59,12 +59,8 @@ def update_row_and_column_index(crr_row_idx, crr_column_idx, rows, columns):
     return [crr_row_idx, crr_column_idx + 1]
 
 
-# > python3 partial_corr.py -dt 2022/04/08 -slide_seconds 1000 -mask_from 07:20 -mask_to 17:10
-# > python3 partial_corr.py -dt 2022/04/08 -slide_seconds 10
-# > python3 partial_corr.py -dt 2022/04/08 -surface_tilt 26 -surface_azimuth 180.5 -h_racs -h_rpacs -h_cacs -h_cc
-# > python3 partial_corr.py -dt 2022/04/08 -surface_tilt 28 -surface_azimuth 178.28 -h_rpacs -h_cacs -h_cc -mask_from 07:20 -mask_to 17:10 -slide_seconds 100 -masking_strategy replace_zero
-# > python3 partial_corr.py -dt 2022/04/08 -surface_tilt 28 -surface_azimuth 178.28 -h_racs -h_rpacs -h_cacs -h_cc -mask_from 07:20 -mask_to 17:10 -masking_strategy replace_zero
-# > python3 partial_corr.py -dt 2022/06/02 -slide_seconds 0 -h_rpacs -surface_tilt 22 -surface_azimuth 179
+# > python3 partial_corr.py -dt 2022/06/02 -slide_seconds 1000 -surface_tilt 22 -surface_azimuth 179 -mask_from 07:20 -mask_to 17:10
+# > python3 selective_corr.py -dt 2022/06/02 -slide_seconds 0 -surface_tilt 22 -surface_azimuth 179
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-dt", type=str)  # グラフ描画したい日付のリスト
@@ -80,18 +76,20 @@ if __name__ == "__main__":
     )  # 'isotropic', 'klucher', 'haydavies', 'reindl', 'king', 'perez'
     parser.add_argument("-surface_tilt", type=int, default=22)
     parser.add_argument("-surface_azimuth", type=float, default=185.0)
+    parser.add_argument("-threshold_q", type=float, default=0.2)
     parser.add_argument("-h_rac", action="store_true")  # 実測値と計算値
     parser.add_argument(
         "-h_racs", action="store_true"
     )  # 実測値と計算値（ずらし）、real and calc slide
     parser.add_argument(
-        "-h_rpacs", action="store_true"
-    )  # 実測値（スプライン）と計算値（ずらし）、real spline and calc slide
-    parser.add_argument(
         "-h_cacs", action="store_true"
     )  # 計算値と計算値（ずらし）、calc and calc slide
     parser.add_argument("-h_cc", action="store_true")  # 相互相関、cross correlation
     args = parser.parse_args()
+
+    if args.slide_seconds == 0:
+        args.h_racs = True
+        args.h_cacs = True
 
     year, month, day = args.dt.split("/")
     from_dt = datetime.datetime(
@@ -117,7 +115,7 @@ if __name__ == "__main__":
     q_all_spline = model.predict(x)
 
     q = Q()  # インスタンス作成時にDBへのコネクションを初期化
-    calced_q_all = q.calc_qs_kw_v2(
+    calc_q_all = q.calc_qs_kw_v2(
         dt_all,
         latitude=33.82794,
         longitude=132.75093,
@@ -139,10 +137,6 @@ if __name__ == "__main__":
     if args.masking_strategy == "drop":
         masked_q_all = q_all[mask]
         masked_q_all_spline = q_all_spline[mask]
-        masked_calc_q_all = calced_q_all[mask]
-        # TODO: マスクしてからslide_seconds秒だけスライドさせる
-        # 以前はスライドさせてからマスクを行っていた
-        masked_calc_q_all_slided = np.roll(masked_calc_q_all, -args.slide_seconds)
 
         masked_dt_all = dt_all[mask]
     elif args.masking_strategy == "replace":
@@ -151,37 +145,75 @@ if __name__ == "__main__":
             q_all_spline, inverted_mask, (q_all_spline * 0) + np.min(q_all_spline[mask])
         )
         np.putmask(q_all, inverted_mask, (q_all * 0) + np.min(q_all[mask]))
-        np.putmask(
-            calced_q_all, inverted_mask, (calced_q_all * 0) + np.min(calced_q_all[mask])
-        )
 
         masked_q_all = q_all
         masked_q_all_spline = q_all_spline
-        masked_calc_q_all = calced_q_all
-        masked_calc_q_all_slided = np.roll(masked_calc_q_all, -args.slide_seconds)
 
         masked_dt_all = dt_all
     elif args.masking_strategy == "replace_zero":
         inverted_mask = np.logical_not(mask)
         np.putmask(q_all_spline, inverted_mask, q_all_spline * 0)
         np.putmask(q_all, inverted_mask, q_all * 0)
-        np.putmask(calced_q_all, inverted_mask, calced_q_all * 0)
 
         masked_q_all = q_all
         masked_q_all_spline = q_all_spline
-        masked_calc_q_all = calced_q_all
-        masked_calc_q_all_slided = np.roll(masked_calc_q_all, -args.slide_seconds)
 
         masked_dt_all = dt_all
     else:
         raise ValueError("masking_strategyの値が不正")
 
+    calc_q_all_slided = np.roll(calc_q_all, -args.slide_seconds)
+
+    if args.threshold_q != 0.0:
+        # しきい値のQでフィルタリング処理
+        # 1. 12時の左側と右側でそれぞれ1点ずつ指定したqの値に最も近い点のタイムスタンプを探す
+        diffs_from_noon = dt_all - datetime.datetime(
+            int(from_dt.year), int(from_dt.month), int(from_dt.day), 12, 0, 0
+        )
+        noon_idx = np.argmin(
+            np.vectorize(lambda diff_delta: np.abs(diff_delta.total_seconds()))(
+                diffs_from_noon
+            )
+        )
+
+        print(f"dt_all[noon_idx]: {dt_all[noon_idx]}")
+
+        # 2.a 午前で実測値が指定した値に最も近いときのtimestampを取得する
+        q_all_copy = np.copy(q_all)
+        left_timestamp_idx = np.argmin(np.abs(q_all_copy[:noon_idx] - args.threshold_q))
+        threshold_q_mask_from = dt_all[left_timestamp_idx]
+        # 2.b 午後で実測値が指定した値に最も近いときのtimestampを取得する
+        q_all_copy = np.copy(q_all)
+        right_timestamp_idx = (
+            np.argmin(np.abs(q_all_copy[noon_idx:] - args.threshold_q)) + noon_idx
+        )
+        threshold_q_mask_to = dt_all[right_timestamp_idx]
+
+        # 3. 実測値を取得したタイムスタンプでマスキングする
+        print(f"{threshold_q_mask_from} 〜 {threshold_q_mask_to}")
+
+        mask = (threshold_q_mask_from <= dt_all) & (dt_all < threshold_q_mask_to)
+
+        # 実測値のthreshold_q_mask_from ~ threshold_q_mask_to以外を0に置き換える
+        inverted_mask = np.logical_not(mask)
+        np.putmask(q_all, inverted_mask, q_all * 0)
+
+        # threshold_q_masked_q_all = q_all
+        # threshold_q_masked_dt_all = dt_all
+
+        # threshold_q_mask_from, threshold_q_mask_toの外側をすべての0にした
+        # threshold_q_masked_q_all_and_replaced_zero = np.copy(threshold_q_masked_q_all)
+
+        # threshold_q_mask_from ~ threshold_q_mask_toのすべての点で「実測値列 - 指定したq」を求めて、マイナスになった箇所は0にする
+        # threshold_q_masked_q_all_and_subed = threshold_q_masked_q_all - args.threshold_q
+        # threshold_q_masked_q_all_and_subed[threshold_q_masked_q_all_and_subed < 0] = 0
+
     # 標準化
     if args.normalize:
         masked_q_all = normalize(masked_q_all)
         masked_q_all_spline = normalize(masked_q_all_spline)
-        masked_calc_q_all = normalize(masked_calc_q_all)
-        masked_calc_q_all_slided = normalize(masked_calc_q_all_slided)
+        calc_q_all = normalize(calc_q_all)
+        calc_q_all_slided = normalize(calc_q_all_slided)
 
     unified_dates = np.vectorize(
         lambda dt: datetime.datetime(
@@ -193,46 +225,38 @@ if __name__ == "__main__":
     (
         corr_with_real_and_calc,
         estimated_delay_with_real_and_calc,
-    ) = calc_delay(masked_calc_q_all, masked_q_all)
+    ) = calc_delay(calc_q_all, masked_q_all)
     print(f"ずれ時間（実測値と計算値）: {estimated_delay_with_real_and_calc}[s]")
 
-    (
-        corr_with_real_and_calc_slided,
-        estimated_delay_with_real_and_calc_slided,
-    ) = calc_delay(masked_calc_q_all_slided, masked_q_all)
-    print(
-        f"ずれ時間（実測値と計算値（{advance_or_delay(args.slide_seconds)}））: {estimated_delay_with_real_and_calc_slided}[s]"
-    )
+    if args.slide_seconds != 0:
+        (
+            corr_with_real_and_calc_slided,
+            estimated_delay_with_real_and_calc_slided,
+        ) = calc_delay(calc_q_all_slided, masked_q_all)
+        print(
+            f"ずれ時間（実測値と計算値（{advance_or_delay(args.slide_seconds)}））: {estimated_delay_with_real_and_calc_slided}[s]"
+        )
 
-    # (
-    #     corr_with_real_spline_and_calc_slided,
-    #     estimated_delay_with_real_spline_and_calc_slided,
-    # ) = calc_delay(masked_calc_q_all_slided, masked_q_all_spline)
-    # print(
-    #     f"ずれ時間（実測値（スプライン）と計算値（{advance_or_delay(args.slide_seconds)}））: {estimated_delay_with_real_spline_and_calc_slided}[s]"
-    # )
-
-    # ずらしありの計算値列を左から右へスライドさせていく
-    (
-        corr_with_calc_and_calc_slided,
-        estimated_delay_with_calc_and_calc_slided,
-    ) = calc_delay(masked_calc_q_all_slided, masked_calc_q_all)
-    print(
-        f"ずれ時間(計算値と計算値（{advance_or_delay(args.slide_seconds)}）): {estimated_delay_with_calc_and_calc_slided}[s]"
-    )
+    if args.slide_seconds != 0:
+        # ずらしありの計算値列を左から右へスライドさせていく
+        (
+            corr_with_calc_and_calc_slided,
+            estimated_delay_with_calc_and_calc_slided,
+        ) = calc_delay(calc_q_all_slided, calc_q_all)
+        print(
+            f"ずれ時間(計算値と計算値（{advance_or_delay(args.slide_seconds)}）): {estimated_delay_with_calc_and_calc_slided}[s]"
+        )
 
     if args.h_cc:
-        total_figure_count = 4
+        total_figure_count = 3
         count_of_fig_per_unit = 1
     else:
-        total_figure_count = 8
+        total_figure_count = 6
         count_of_fig_per_unit = 2
 
     if args.h_rac:
         total_figure_count -= count_of_fig_per_unit
     if args.h_racs:
-        total_figure_count -= count_of_fig_per_unit
-    if args.h_rpacs:
         total_figure_count -= count_of_fig_per_unit
     if args.h_cacs:
         total_figure_count -= count_of_fig_per_unit
@@ -277,7 +301,7 @@ if __name__ == "__main__":
         )
         axes[crr_row_idx, crr_column_idx].plot(
             unified_dates,
-            masked_calc_q_all,
+            calc_q_all,
             label=f"計算値: {dt_all[0].strftime('%Y-%m-%d')}",
             linestyle="dashed",
             color=colorlist[1],
@@ -306,7 +330,7 @@ if __name__ == "__main__":
         )
         axes[crr_row_idx, crr_column_idx].plot(
             unified_dates,
-            masked_calc_q_all_slided,
+            calc_q_all_slided,
             label=f"計算値({advance_or_delay(args.slide_seconds)}): {dt_all[0].strftime('%Y-%m-%d')}",
             linestyle="dashed",
             color=colorlist[1],
@@ -325,57 +349,21 @@ if __name__ == "__main__":
             crr_row_idx, crr_column_idx, rows, columns
         )
 
-    # if not args.h_rpacs:
-    #     # 実測値（スプライン）と計算値（ずらし有り）
-    #     axes[crr_row_idx, crr_column_idx].plot(
-    #         unified_dates,
-    #         masked_q_all_spline,
-    #         label=f"実測値: {dt_all[0].strftime('%Y-%m-%d')}",
-    #         color=colorlist[0],
-    #     )
-    #     axes[crr_row_idx, crr_column_idx].plot(
-    #         unified_dates,
-    #         masked_calc_q_all_slided,
-    #         label=f"計算値({advance_or_delay(args.slide_seconds)}): {dt_all[0].strftime('%Y-%m-%d')}",
-    #         linestyle="dashed",
-    #         color=colorlist[1],
-    #     )
-    #     axes[crr_row_idx, crr_column_idx].set_title(
-    #         f"実測値（スプライン）と計算値（{advance_or_delay(args.slide_seconds)}）\nずれ時間: {estimated_delay_with_real_spline_and_calc_slided}[s]\n{span}",
-    #     )
-    #     axes[crr_row_idx, crr_column_idx].set_xlabel("時刻")
-    #     axes[crr_row_idx, crr_column_idx].set_ylabel("日射量 [kW/m$^2$]")
-    #     axes[crr_row_idx, crr_column_idx].xaxis.set_major_formatter(
-    #         mdates.DateFormatter("%H:%M")
-    #     )
-    #     axes[crr_row_idx, crr_column_idx].legend()
-
-    #     crr_row_idx, crr_column_idx = update_row_and_column_index(
-    #         crr_row_idx, crr_column_idx, rows, columns
-    #     )
-
     if not args.h_cacs:
         # 計算値同と計算値（ずらし有り）
         axes[crr_row_idx, crr_column_idx].plot(
             unified_dates,
-            masked_calc_q_all,
+            calc_q_all,
             label=f"計算値: {dt_all[0].strftime('%Y-%m-%d')}",
             color=colorlist[0],
         )
         axes[crr_row_idx, crr_column_idx].plot(
             unified_dates,
-            masked_calc_q_all_slided,
+            calc_q_all_slided,
             label=f"計算値({advance_or_delay(args.slide_seconds)}): {dt_all[0].strftime('%Y-%m-%d')}",
             linestyle="dashed",
             color=colorlist[1],
         )
-        # axes[crr_row_idx, crr_column_idx].plot(
-        #     unified_dates,
-        #     np.roll(masked_calc_q_all_slided, args.slide_seconds),
-        #     label=f"計算値(ずらし有りをロール): {dt_all[0].strftime('%Y-%m-%d')}",
-        #     linestyle="dashdot",
-        #     color=colorlist[2],
-        # )
         axes[crr_row_idx, crr_column_idx].set_title(
             f"計算値と計算値（{advance_or_delay(args.slide_seconds)}）\nずれ時間: {estimated_delay_with_calc_and_calc_slided}[s]\n{span}",
         )
@@ -393,8 +381,8 @@ if __name__ == "__main__":
     if not args.h_rac and not args.h_cc:
         lags = np.concatenate(
             [
-                np.arange(-1 * len(masked_calc_q_all) + 1, 0, 1),
-                np.arange(0, len(masked_calc_q_all), 1),
+                np.arange(-1 * len(calc_q_all) + 1, 0, 1),
+                np.arange(0, len(calc_q_all), 1),
             ],
             0,
         )
@@ -416,8 +404,8 @@ if __name__ == "__main__":
     if not args.h_racs and not args.h_cc:
         lags = np.concatenate(
             [
-                np.arange(-1 * len(masked_calc_q_all_slided) + 1, 0, 1),
-                np.arange(0, len(masked_calc_q_all_slided), 1),
+                np.arange(-1 * len(calc_q_all_slided) + 1, 0, 1),
+                np.arange(0, len(calc_q_all_slided), 1),
             ],
             0,
         )
@@ -438,36 +426,11 @@ if __name__ == "__main__":
             crr_row_idx, crr_column_idx, rows, columns
         )
 
-    # if not args.h_rpacs and not args.h_cc:
-    #     lags = np.concatenate(
-    #         [
-    #             np.arange(-1 * len(masked_calc_q_all_slided) + 1, 0, 1),
-    #             np.arange(0, len(masked_calc_q_all_slided), 1),
-    #         ],
-    #         0,
-    #     )
-    #     axes[crr_row_idx, crr_column_idx].plot(
-    #         lags,
-    #         corr_with_real_spline_and_calc_slided,
-    #         label=f"相互相関: {dt_all[0].strftime('%Y-%m-%d')}",
-    #         color=colorlist[0],
-    #     )
-    #     axes[crr_row_idx, crr_column_idx].set_title(
-    #         f"実測値（スプライン）と計算値（{advance_or_delay(args.slide_seconds)}）",
-    #     )
-    #     axes[crr_row_idx, crr_column_idx].set_xlabel("ラグ")
-    #     axes[crr_row_idx, crr_column_idx].set_ylabel("相互相関")
-    #     axes[crr_row_idx, crr_column_idx].legend()
-
-    #     crr_row_idx, crr_column_idx = update_row_and_column_index(
-    #         crr_row_idx, crr_column_idx, rows, columns
-    #     )
-
     if not args.h_cacs and not args.h_cc:
         lags = np.concatenate(
             [
-                np.arange(-1 * len(masked_calc_q_all_slided) + 1, 0, 1),
-                np.arange(0, len(masked_calc_q_all_slided), 1),
+                np.arange(-1 * len(calc_q_all_slided) + 1, 0, 1),
+                np.arange(0, len(calc_q_all_slided), 1),
             ],
             0,
         )
