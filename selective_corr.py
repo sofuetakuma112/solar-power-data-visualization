@@ -10,7 +10,6 @@ from utils.q import Q
 from utils.correlogram import unify_deltas_between_dts_v2
 from utils.colors import colorlist
 import matplotlib.dates as mdates
-from scipy import interpolate
 
 from utils.spline_model import get_natural_cubic_spline_model
 from utils.init_matplotlib import init_rcParams, figsize_px_to_inch
@@ -76,7 +75,8 @@ if __name__ == "__main__":
     )  # 'isotropic', 'klucher', 'haydavies', 'reindl', 'king', 'perez'
     parser.add_argument("-surface_tilt", type=int, default=22)
     parser.add_argument("-surface_azimuth", type=float, default=185.0)
-    parser.add_argument("-threshold_q", type=float, default=0.2)
+    parser.add_argument("-threshold_q", type=float, default=0.0)
+    parser.add_argument("-enable_threshold_subtraction", action="store_true")
     parser.add_argument("-h_rac", action="store_true")  # 実測値と計算値
     parser.add_argument(
         "-h_racs", action="store_true"
@@ -135,30 +135,19 @@ if __name__ == "__main__":
 
     # マスク処理
     if args.masking_strategy == "drop":
-        masked_q_all = q_all[mask]
-        masked_q_all_spline = q_all_spline[mask]
+        q_all = q_all[mask]
 
-        masked_dt_all = dt_all[mask]
+        dt_all = dt_all[mask]
     elif args.masking_strategy == "replace":
         inverted_mask = np.logical_not(mask)
         np.putmask(
             q_all_spline, inverted_mask, (q_all_spline * 0) + np.min(q_all_spline[mask])
         )
         np.putmask(q_all, inverted_mask, (q_all * 0) + np.min(q_all[mask]))
-
-        masked_q_all = q_all
-        masked_q_all_spline = q_all_spline
-
-        masked_dt_all = dt_all
     elif args.masking_strategy == "replace_zero":
         inverted_mask = np.logical_not(mask)
         np.putmask(q_all_spline, inverted_mask, q_all_spline * 0)
         np.putmask(q_all, inverted_mask, q_all * 0)
-
-        masked_q_all = q_all
-        masked_q_all_spline = q_all_spline
-
-        masked_dt_all = dt_all
     else:
         raise ValueError("masking_strategyの値が不正")
 
@@ -198,20 +187,14 @@ if __name__ == "__main__":
         inverted_mask = np.logical_not(mask)
         np.putmask(q_all, inverted_mask, q_all * 0)
 
-        # threshold_q_masked_q_all = q_all
-        # threshold_q_masked_dt_all = dt_all
-
-        # threshold_q_mask_from, threshold_q_mask_toの外側をすべての0にした
-        # threshold_q_masked_q_all_and_replaced_zero = np.copy(threshold_q_masked_q_all)
-
-        # threshold_q_mask_from ~ threshold_q_mask_toのすべての点で「実測値列 - 指定したq」を求めて、マイナスになった箇所は0にする
-        # threshold_q_masked_q_all_and_subed = threshold_q_masked_q_all - args.threshold_q
-        # threshold_q_masked_q_all_and_subed[threshold_q_masked_q_all_and_subed < 0] = 0
+        if args.enable_threshold_subtraction:
+            # threshold_q_mask_from ~ threshold_q_mask_toのすべての点で「実測値列 - 指定したq」を求めて、マイナスになった箇所は0にする
+            q_all = q_all - args.threshold_q
+            q_all[q_all < 0] = 0
 
     # 標準化
     if args.normalize:
-        masked_q_all = normalize(masked_q_all)
-        masked_q_all_spline = normalize(masked_q_all_spline)
+        q_all = normalize(q_all)
         calc_q_all = normalize(calc_q_all)
         calc_q_all_slided = normalize(calc_q_all_slided)
 
@@ -219,20 +202,20 @@ if __name__ == "__main__":
         lambda dt: datetime.datetime(
             2022, 1, 1, dt.hour, dt.minute, dt.second, dt.microsecond
         )
-    )(masked_dt_all)
+    )(dt_all)
 
     # np.correlate(M, N): Mが0パディングされる側、Nがスライドする側
     (
         corr_with_real_and_calc,
         estimated_delay_with_real_and_calc,
-    ) = calc_delay(calc_q_all, masked_q_all)
+    ) = calc_delay(calc_q_all, q_all)
     print(f"ずれ時間（実測値と計算値）: {estimated_delay_with_real_and_calc}[s]")
 
     if args.slide_seconds != 0:
         (
             corr_with_real_and_calc_slided,
             estimated_delay_with_real_and_calc_slided,
-        ) = calc_delay(calc_q_all_slided, masked_q_all)
+        ) = calc_delay(calc_q_all_slided, q_all)
         print(
             f"ずれ時間（実測値と計算値（{advance_or_delay(args.slide_seconds)}））: {estimated_delay_with_real_and_calc_slided}[s]"
         )
@@ -295,7 +278,7 @@ if __name__ == "__main__":
         # 実測値と計算値
         axes[crr_row_idx, crr_column_idx].plot(
             unified_dates,
-            masked_q_all,
+            q_all,
             label=f"実測値: {dt_all[0].strftime('%Y-%m-%d')}",
             color=colorlist[0],
         )
@@ -324,7 +307,7 @@ if __name__ == "__main__":
         # 実測値と計算値（ずらし有り）
         axes[crr_row_idx, crr_column_idx].plot(
             unified_dates,
-            masked_q_all,
+            q_all,
             label=f"実測値: {dt_all[0].strftime('%Y-%m-%d')}",
             color=colorlist[0],
         )
