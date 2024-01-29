@@ -1,7 +1,8 @@
 import datetime
 
 from matplotlib import pyplot as plt
-import japanize_matplotlib
+# import japanize_matplotlib
+import matplotlib_fontja
 from utils.es.load import load_q_and_dt_for_period
 import argparse
 from utils.frequency_analysis import find_phase_difference, perform_fft

@@ -2,7 +2,8 @@ import datetime
 import os
 from matplotlib import dates
 import numpy as np
-import japanize_matplotlib
+# import japanize_matplotlib
+import matplotlib_fontja
 import math
 
 import pandas as pd

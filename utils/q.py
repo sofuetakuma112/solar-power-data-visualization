@@ -6,7 +6,8 @@ import pvlib
 from pvlib import clearsky
 import requests
 import sqlite3
-import japanize_matplotlib
+# import japanize_matplotlib
+import matplotlib_fontja
 
 from scipy.interpolate import interp1d
 import zoneinfo

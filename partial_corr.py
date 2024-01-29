@@ -1,6 +1,7 @@
 import datetime
 import matplotlib.pyplot as plt
-import japanize_matplotlib
+# import japanize_matplotlib
+import matplotlib_fontja
 from utils.corr import calc_delay
 from utils.date import mask_from_into_dt, mask_to_into_dt
 from utils.es.load import load_q_and_dt_for_period

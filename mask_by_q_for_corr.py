@@ -2,7 +2,8 @@ import datetime
 import json
 import os
 import matplotlib.pyplot as plt
-import japanize_matplotlib
+# import japanize_matplotlib
+import matplotlib_fontja
 from utils.corr import calc_delay
 from utils.es.load import load_q_and_dt_for_period
 import argparse

@@ -3,7 +3,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from utils.phase_diff import calculate_phase_diffs, create_dataframe, generate_time_array, perform_frequency_analysis, plot_calced_q_graph, plot_phase_graph
 from utils.init_matplotlib import figsize_px_to_inch, init_rcParams
-import japanize_matplotlib
+# import japanize_matplotlib
+import matplotlib_fontja
 
 FONT_SIZE = 14
 

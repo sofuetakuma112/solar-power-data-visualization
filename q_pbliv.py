@@ -12,7 +12,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from utils.init_matplotlib import figsize_px_to_inch, init_rcParams
 import matplotlib.pyplot as plt
-import japanize_matplotlib
+# import japanize_matplotlib
+import matplotlib_fontja
 import numpy as np
 from utils.q import Q
 

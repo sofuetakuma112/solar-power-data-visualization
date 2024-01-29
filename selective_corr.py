@@ -1,6 +1,8 @@
 import datetime
 import matplotlib.pyplot as plt
-import japanize_matplotlib
+
+# import japanize_matplotlib
+import matplotlib_fontja
 from utils.corr import calc_delay
 from utils.date import mask_from_into_dt, mask_to_into_dt
 from utils.es.load import load_q_and_dt_for_period
@@ -14,7 +16,7 @@ import matplotlib.dates as mdates
 from utils.spline_model import get_natural_cubic_spline_model
 from utils.init_matplotlib import init_rcParams, figsize_px_to_inch
 
-FONT_SIZE = 14
+FONT_SIZE = 20
 
 
 def advance_or_delay(seconds):
@@ -58,8 +60,9 @@ def update_row_and_column_index(crr_row_idx, crr_column_idx, rows, columns):
     return [crr_row_idx, crr_column_idx + 1]
 
 
-# > python3 partial_corr.py -dt 2022/06/02 -slide_seconds 1000 -surface_tilt 22 -surface_azimuth 179 -mask_from 07:20 -mask_to 17:10
+# > python3 selective_corr.py -dt 2022/06/02 -slide_seconds 1000 -surface_tilt 22 -surface_azimuth 179 -mask_from 07:20 -mask_to 17:10
 # > python3 selective_corr.py -dt 2022/06/02 -slide_seconds 0 -surface_tilt 22 -surface_azimuth 179
+# > python3 selective_corr.py -dt 2022/06/02 -slide_seconds 0 -surface_tilt 22 -surface_azimuth 179 -h_cc -threshold_q 0.2
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-dt", type=str)  # グラフ描画したい日付のリスト
@@ -76,7 +79,9 @@ if __name__ == "__main__":
     parser.add_argument("-surface_tilt", type=int, default=22)
     parser.add_argument("-surface_azimuth", type=float, default=185.0)
     parser.add_argument("-threshold_q", type=float, default=0.0)
+    parser.add_argument("-show_threshold_q", action="store_true")
     parser.add_argument("-enable_threshold_subtraction", action="store_true")
+    parser.add_argument("-show_preprocessing_data", action="store_true")
     parser.add_argument("-h_rac", action="store_true")  # 実測値と計算値
     parser.add_argument(
         "-h_racs", action="store_true"
@@ -85,6 +90,8 @@ if __name__ == "__main__":
         "-h_cacs", action="store_true"
     )  # 計算値と計算値（ずらし）、calc and calc slide
     parser.add_argument("-h_cc", action="store_true")  # 相互相関、cross correlation
+    parser.add_argument("-show_date_in_graph", action="store_true")
+    parser.add_argument("-show_title_in_graph", action="store_true")
     args = parser.parse_args()
 
     if args.slide_seconds == 0:
@@ -154,6 +161,8 @@ if __name__ == "__main__":
     calc_q_all_slided = np.roll(calc_q_all, -args.slide_seconds)
 
     if args.threshold_q != 0.0:
+        preprocessing_q_all = np.copy(q_all)
+
         # しきい値のQでフィルタリング処理
         # 1. 12時の左側と右側でそれぞれ1点ずつ指定したqの値に最も近い点のタイムスタンプを探す
         diffs_from_noon = dt_all - datetime.datetime(
@@ -276,22 +285,32 @@ if __name__ == "__main__":
 
     if not args.h_rac:
         # 実測値と計算値
+        if args.show_preprocessing_data:
+            axes[crr_row_idx, crr_column_idx].plot(
+                unified_dates,
+                preprocessing_q_all,
+                label=f"実測値{f": {dt_all[0].strftime('%Y-%m-%d')}" if args.show_date_in_graph else ''}",
+                color=colorlist[2],
+            )
         axes[crr_row_idx, crr_column_idx].plot(
             unified_dates,
             q_all,
-            label=f"実測値: {dt_all[0].strftime('%Y-%m-%d')}",
+            label=f"{"前処理後の" if args.threshold_q != 0.0 else ""}実測値{f": {dt_all[0].strftime('%Y-%m-%d')}" if args.show_date_in_graph else ''}",
             color=colorlist[0],
         )
         axes[crr_row_idx, crr_column_idx].plot(
             unified_dates,
             calc_q_all,
-            label=f"計算値: {dt_all[0].strftime('%Y-%m-%d')}",
+            label=f"計算値{f": {dt_all[0].strftime('%Y-%m-%d')}" if args.show_date_in_graph else ''}",
             linestyle="dashed",
             color=colorlist[1],
         )
-        axes[crr_row_idx, crr_column_idx].set_title(
-            f"実測値と計算値\nずれ時間: {estimated_delay_with_real_and_calc}[s]\n{span}",
-        )
+        if args.show_threshold_q:
+            axes[crr_row_idx, crr_column_idx].axhline(y=args.threshold_q, linestyle='--', color=colorlist[3])
+        if args.show_title_in_graph:
+            axes[crr_row_idx, crr_column_idx].set_title(
+                f"実測値と計算値\nずれ時間: {estimated_delay_with_real_and_calc}[s]\n{span}",
+            )
         axes[crr_row_idx, crr_column_idx].set_xlabel("時刻")
         axes[crr_row_idx, crr_column_idx].set_ylabel("日射量 [kW/m$^2$]")
         axes[crr_row_idx, crr_column_idx].xaxis.set_major_formatter(
