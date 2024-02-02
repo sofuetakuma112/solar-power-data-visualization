@@ -306,7 +306,7 @@ if __name__ == "__main__":
             color=colorlist[1],
         )
         if args.show_threshold_q:
-            axes[crr_row_idx, crr_column_idx].axhline(y=args.threshold_q, linestyle='--', color=colorlist[3])
+            axes[crr_row_idx, crr_column_idx].axhline(y=args.threshold_q, linestyle='--', color=colorlist[3], label="前処理用のしきい値")
         if args.show_title_in_graph:
             axes[crr_row_idx, crr_column_idx].set_title(
                 f"実測値と計算値\nずれ時間: {estimated_delay_with_real_and_calc}[s]\n{span}",
