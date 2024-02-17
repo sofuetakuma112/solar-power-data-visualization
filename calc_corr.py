@@ -22,6 +22,7 @@ def normalize(data):
 
 FONT_SIZE = 14
 
+# > python3 calc_corr.py -dt 2022/06/02 -surface_tilt 22 -surface_azimuth 179 -show_graph
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-dt", nargs='+', type=str)  # グラフ描画したい日付のリスト
@@ -77,26 +78,26 @@ if __name__ == "__main__":
         axes[0].plot(
             unified_dates,
             q_all,
-            label=f"実測値: {dt_all[0].strftime('%Y-%m-%d')}",
+            label=f"実測値",
             color=colorlist[0],
         )
         axes[0].plot(
             unified_dates,
             calced_q_all,
-            label=f"計算値: {dt_all[0].strftime('%Y-%m-%d')}",
+            label=f"計算値",
             linestyle="dashed",
             color=colorlist[1],
         )
         axes[0].set_xlabel("時刻")
         axes[0].set_ylabel("日射量 [kW/m$^2$]")
         axes[0].xaxis.set_major_formatter(dates.DateFormatter("%H:%M"))
-        axes[0].legend()
+        axes[0].legend(fontsize=20)
 
         # 自作の計算式で計算データを求める
         calced_q_by_original = np.vectorize(lambda dt: calc_q_kw(dt, lat, lng))(dt_all)
 
-        q_all = min_max(q_all)
-        calced_q_by_original = min_max(calced_q_by_original)
+        # q_all = min_max(q_all)
+        # calced_q_by_original = min_max(calced_q_by_original)
 
         (
             corr_with_real_and_calc_by_original,
@@ -106,20 +107,20 @@ if __name__ == "__main__":
         axes[1].plot(
             unified_dates,
             q_all,
-            label=f"実測値: {dt_all[0].strftime('%Y-%m-%d')}",
+            label=f"実測値",
             color=colorlist[0],
         )
         axes[1].plot(
             unified_dates,
             calced_q_by_original,
-            label=f"計算値（自作関数）: {dt_all[0].strftime('%Y-%m-%d')}",
+            label=f"計算値",
             linestyle="dashed",
             color=colorlist[1],
         )
         axes[1].set_xlabel("時刻")
         axes[1].set_ylabel("日射量 [kW/m$^2$]")
         axes[1].xaxis.set_major_formatter(dates.DateFormatter("%H:%M"))
-        axes[1].legend()
+        axes[1].legend(fontsize=20)
 
         print(f"ずれ時間（実測値と計算値（大気外日射量））: {estimated_delay_with_real_and_calc_by_original}[s]")
         print(f"ずれ時間（実測値と計算値（pvlib））: {estimated_delay_with_real_and_calc}[s]")
