@@ -14,3 +14,22 @@
         - pvlibによる地表日射量と実測値（前処理済み）の相互相関の計算
         - pvlibによる地表日射量と実測値（前処理済み）のグラフプロット
         - 前処理に使用したしきい値のグラフプロット
+- utils/es
+    - このディレクトリ下のコードは主にElasticsearchからのデータ取得に関する処理を記述している。
+
+- utils/colors.py
+    - matplotlibのグラフプロットの線の色に関する情報
+- utils/corr.py
+    - 相互相関を計算する関数
+- utils/correlogram.py
+    - Elasticsearchから取得したデータの計測日時が1秒間隔に均等になるよう変換する関数
+- utils/date.py
+    - 日付系のユーティリティ関数
+    - （selective_corr.pyのmask_from, mask_toコマンドライン引数を使って）指定した期間のみ実測値を残して、後は0kWに置き換える処理を行う際に呼ばれる
+- utils/file.py
+    - Elasticsearchから取得したデータをローカルにキャッシュする際のディレクトリ、ファイル名を決定するための関数
+- utils/init_matplotlib.py
+    - matplotlibのグラフのサイズや文字のサイズを設定するための関数
+    - 主に報告書や論文にグラフを掲載するため用
+- utils/q.py
+    - 大気外日射量や地表日射量を計算する関数
