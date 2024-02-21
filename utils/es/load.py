@@ -40,11 +40,14 @@ def time_to_seconds(t):
 EPOCH_TIME = datetime.datetime(1970, 1, 1)
 
 # データの補完はunify_deltas_between_dtsに任せる
-# そのためにここでは00:00:00と23:59:59にそれぞれデータ点を挿入する
 def load_q_and_dt_for_period(
     start_dt,
     span,
 ):
+    """
+    引数のstart_dtからspan日分のリサイクル館のデータを取得して、[日射量のリスト, 計測日時のリスト]の形式で返す。
+    Elasticsearchから取得したデータをそのまま返すので、計測日時の間隔を1秒間隔に揃える処理はunify_deltas_between_dts_v2関数で行う。
+    """
     q_all = np.array([])
     dt_all = np.array([])
     dt_crr_fetching = start_dt

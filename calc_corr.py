@@ -8,7 +8,6 @@ from utils.corr import calc_delay
 from utils.es.load import load_q_and_dt_for_period
 import numpy as np
 from utils.init_matplotlib import figsize_px_to_inch, init_rcParams
-from utils.numerical_processing import min_max
 from utils.q import Q, calc_q_kw
 from utils.correlogram import (
     unify_deltas_between_dts_v2,

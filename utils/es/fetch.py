@@ -5,7 +5,6 @@ import os
 sys.path.append(os.path.abspath(".."))
 
 from elasticsearch import Elasticsearch
-import pickle
 import datetime
 
 from utils.file import get_json_file_path_by_datetime
@@ -16,6 +15,9 @@ load_dotenv(f"{os.getcwd()}/.env")
 
 
 def fetch_docs_by_datetime(dt):
+    """
+    引数の日付のリサイクル館のデータを取得する
+    """
     es = Elasticsearch(
         "http://133.71.201.197:9200",
         basic_auth=(
@@ -70,21 +72,3 @@ def fetch_docs_by_datetime(dt):
         json.dump(result, f, ensure_ascii=False, indent=4)
 
     es.close()  # 内部接続を閉じる
-
-
-# 2日以上のデータをelasticsearchから取得する関数
-def fetchDocsByPeriod(fromDt, toDt):
-    # 1日おきにfetch_docs_by_datetimeを呼び出してpickleファイルを書き込んでいく
-    # datetime同士の減算はtimedeltaのインスタンスになる
-    dtDiff = toDt - fromDt
-    dt_crr = fromDt
-    dt_now = datetime.datetime.now()
-    for _ in range(dtDiff.days + 1):
-        if dt_crr > dt_now:
-            break
-        fetch_docs_by_datetime(dt_crr)
-        dt_crr = dt_crr + datetime.timedelta(days=1)
-
-
-if __name__ == "__main__":
-    fetchDocsByPeriod(datetime.datetime(2022, 1, 1), datetime.datetime(2022, 10, 20))
