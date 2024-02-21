@@ -2,7 +2,6 @@ import argparse
 import datetime
 from matplotlib import dates
 import matplotlib.pyplot as plt
-# import japanize_matplotlib
 import matplotlib_fontja
 from utils.corr import calc_delay
 from utils.es.load import load_q_and_dt_for_period
@@ -31,7 +30,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     for dt_str in args.dt:
-        print(dt_str)
         year, month, day = dt_str.split("/")
         from_dt = datetime.datetime(
             int(year),
@@ -44,10 +42,11 @@ if __name__ == "__main__":
         dt_all, q_all = load_q_and_dt_for_period(from_dt, diff_days)
         dt_all, q_all = unify_deltas_between_dts_v2(dt_all, q_all)
 
+        # リサイクル館の緯度、経度
         lat = 33.82794
         lng = 132.75093
 
-        q = Q()  # インスタンス作成時にDBへのコネクションを初期化
+        q = Q()  # インスタンス作成時にDBへのコネクションを初期化している
         calced_q_all = q.calc_qs_kw_v2(
             dt_all,
             latitude=lat,
@@ -92,11 +91,8 @@ if __name__ == "__main__":
         axes[0].xaxis.set_major_formatter(dates.DateFormatter("%H:%M"))
         axes[0].legend(fontsize=20)
 
-        # 自作の計算式で計算データを求める
+        # 大気外日射量を求める
         calced_q_by_original = np.vectorize(lambda dt: calc_q_kw(dt, lat, lng))(dt_all)
-
-        # q_all = min_max(q_all)
-        # calced_q_by_original = min_max(calced_q_by_original)
 
         (
             corr_with_real_and_calc_by_original,
@@ -137,8 +133,7 @@ if __name__ == "__main__":
             )
         )
 
-        # print(f"dt_all[noon_idx]: {dt_all[noon_idx]}")
-
+        # 前処理のしきい値
         threshold_q = 0.2
 
         # 2.a 午前で実測値が指定した値に最も近いときのtimestampを取得する
@@ -152,9 +147,7 @@ if __name__ == "__main__":
         )
         threshold_q_mask_to = dt_all[right_timestamp_idx]
 
-        # 3. 実測値を取得したタイムスタンプでマスキングする
-        # print(f"{threshold_q_mask_from} 〜 {threshold_q_mask_to}")
-
+        # 3. 実測値を取得したタイムスタンプでフィルタリングする
         mask = (threshold_q_mask_from <= dt_all) & (dt_all < threshold_q_mask_to)
 
         # 実測値のthreshold_q_mask_from ~ threshold_q_mask_to以外を0に置き換える
