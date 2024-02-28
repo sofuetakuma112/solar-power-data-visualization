@@ -26,7 +26,7 @@ def advance_or_delay(seconds):
         return ""
 
 
-# > python3 selective_corr.py -dt 2022/06/02 -slide_seconds 0 -surface_tilt 22 -surface_azimuth 179 -threshold_q 0.2 -show_preprocessing_data -show_threshold_
+# > python3 selective_corr.py -dt 2022/06/02 -slide_seconds 0 -surface_tilt 22 -surface_azimuth 179 -threshold_q 0.2 -show_preprocessing_data -show_threshold_q
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-dt", type=str)  # グラフ描画したい日付のリスト
